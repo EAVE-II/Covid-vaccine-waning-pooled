@@ -8,9 +8,12 @@
 
 #### 0 - Set up ####
 
+# Note: Paper uses sections 3, 6, 7 and 8
+
 # Libraries
 library(survival)
 library(survminer)
+library(mgcv)
 
 # Colours 
 eave_green <- rgb(54, 176, 136, maxColorValue = 255)
@@ -476,12 +479,9 @@ z_glm_outputs
 write.csv(z_glm_outputs, paste0("./output/final/modelling/", z_event_endpoint, "/poisson_vacc_age_sex.csv"))
 
 
-##### GAM Overall ####
-library(mgcv)
+##### 5 - GAM - Overall ####
 
-# Simple first
-
-# time_to_hosp =z.year as days rather than weeks
+# time_to_hosp =z.yr as days rather than weeks
 z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1:max(df_cc_ps_matches$time_to_hosp) ) )
 
 #aggregate for overall
@@ -492,26 +492,25 @@ z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr,
 z_pois <- z.agg$data
 
 
-# Alternative
+# GAM
 z_gam <- gam(event ~ offset(log(pyears)) + -1 + vacc + s(as.numeric(z.yr), by=vacc), 
              family=poisson, data=z_pois)
 
 
-par(mfrow=c(1,2))
-plot(z_gam)
-
-
-
 # Predict risk of event
 z_pois_pred <- z_pois
-z_pred <- predict(z_gam, newdata=z_pois_pred, type="response", se =T) # lpmatrix
+z_pred <- predict(z_gam, newdata=z_pois_pred, type="response", se =T)
 z_pois_pred$est <- z_pred$fit
 z_pois_pred$mu <- (z_pred$fit)^2
 z_pois_pred$var.fit <- (z_pred$se.fit)^2
 z_pois_pred$upr <- z_pred$fit + 1.96*z_pred$se.fit
 z_pois_pred$lwr <- z_pred$fit - 1.96*z_pred$se.fit
 
-# Ratios
+
+## Calculate ratios
+# Uses approximations for mean and variable of ratio (https://www.stat.cmu.edu/~hseltman/files/ratio.pdf)
+# Did not use so can ignore
+
 z_pois_pred_rr <- z_pois_pred %>%
   group_by(z.yr) %>%
   mutate(RR = est[vacc == "vacc"]/est[vacc == "uv"]) %>%
@@ -524,21 +523,9 @@ z_pois_pred_rr <- z_pois_pred %>%
   mutate(upr = RR + 1.96*sqrt(var)) %>%
   mutate(lwr=RR + 1.96*sqrt(var))
 
-z_pois_pred_rr <- z_pois_pred %>%
-  group_by(z.yr) %>%
-  mutate(RR = est[vacc == "vacc"]/est[vacc == "uv"]) %>%
-  mutate(var1 = (mu[vacc == "vacc"])/(mu[vacc == "uv"])) %>%
-  mutate(var2 = (var.fit[vacc == "vacc"])/(mu[vacc == "vacc"]) + 
-           (var.fit[vacc == "uv"])/(mu[vacc == "uv"])) %>%
-  mutate(var = var1*var2) %>%
-  select(-c(vacc, pyears, n, event, est, upr, lwr, var.fit, var1, var2)) %>%
-  distinct() %>%
-  mutate(upr = RR + 1.96*sqrt(var)) %>%
-  mutate(lwr=RR - 1.96*sqrt(var))
-
 z_pois_pred_rr
 
-## GAMS
+# Plot GAMs themselves
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/gam_overall.png"),
     width = 700, height=400)
 
@@ -557,7 +544,7 @@ ggplot(z_pois_pred) +
 dev.off()
 
 
-## GAM RR
+# Plot GAM RRs
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/gam_overall_rr.png"),
     width = 700, height=400)
 ggplot(z_pois_pred_rr) +
