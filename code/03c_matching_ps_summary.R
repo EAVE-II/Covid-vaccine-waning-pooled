@@ -233,28 +233,8 @@ df_res
 
 
 
-# Individual characteristics
-summary_tbl_wt <- summary_factorlist_wt(df_cc_desc,"vacc", explanatory = explanatory)
-head(summary_tbl_wt)
-write.csv(summary_tbl_wt, "./output/final/matching_summary/summary_table_weights.csv")
 
-summary_tbl_wt <- summary_factorlist_wt(df_cc_desc,"vacc_type", explanatory = explanatory)
-write.csv(summary_tbl_wt, "./output/final/matching_summary/summary_table_vacc_weights.csv")
-
-
-
-
-##### Follow-up #####
-df_cc_ps_matches <- df_cc_ps_matches %>%
-  mutate(age_grp = case_when(ageYear < 65 ~"18-64", 
-                             ageYear < 80 ~"65-79",
-                             TRUE ~ "80+")) %>%
-  left_join(select(df_cohort, EAVE_LINKNO, ageYear),
-            by=c("EAVE_LINKNO_vacc" = "EAVE_LINKNO"), 
-            suffix = c("", "_vacc")) %>%
-  mutate(age_grp_vacc = case_when(ageYear_vacc < 65 ~"18-64", 
-                                  ageYear_vacc < 80 ~"65-79",
-                                  TRUE ~ "80+"))
+##### 4 - Follow-up #####
 
 # Overall time to follow up
 ggplot(df_cc_ps_matches) +
@@ -293,7 +273,7 @@ df_cc_ps_matches %>%
   ggplot() +
   #geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2) +
   geom_histogram(aes(x=time_to_hosp, fill=vacc_type), position = "dodge")+
-  facet_wrap(~age_grp_vacc, ncol=1, scales="free")+
+  facet_wrap(~age_grp, ncol=1, scales="free")+
   geom_vline(xintercept = 14, linetype=2) +
   labs(x="Follow-up (days)", fill="Vaccine type",
        subtitle = paste0("Follow-up of ", z_title, " by age")) +
@@ -312,11 +292,11 @@ png(file=paste0("./output/final/matching_summary/followup_vacc_age_event.png"),
 ggplot(df_cc_ps_matches) +
   #geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2)+
   geom_histogram(aes(x=time_to_hosp, fill=vacc_type), position = "dodge")+
-  facet_grid(age_grp_vacc~event, scales="free")+
+  facet_wrap(age_grp~event, scales="free", ncol=2)+
   geom_vline(xintercept = 14, linetype=2) +
   labs(x="Follow-up (days)", fill="Vaccine type", 
        subtitle = paste0("Follow-up of ", z_title, " by age and event")) +
-  annotate("text", x=14.5, y=0.04, label = "14 days", hjust=0, size=3.5)+
+  #annotate("text", x=14.5, y=0.04, label = "14 days", hjust=0, size=3.5)+
   theme_light() +
   scale_fill_manual(values = c(eave_blue, eave_green))+
   scale_y_continuous(labels = function(x) format(x, scientific = F))
@@ -324,206 +304,6 @@ ggplot(df_cc_ps_matches) +
 
 dev.off()
 
-
-
-## Other plots
-
-vaccine_status_label <- c("Control", "Exposed")
-names(vaccine_status_label) <- c("uv", "vacc")
-
-ggplot(df_cc_ps_matches) +
-  geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2)+
-  geom_vline(xintercept = 14, linetype=2) +
-  facet_grid(~vacc, labeller = labeller(vacc = vaccine_status_label)) +
-  labs(x="Follow-up (days)", fill="Vaccine type") +
-  annotate("text", x=14.5, y=0.04, label = "14 days", hjust=0, size=3.5)+
-  theme_light() +
-  scale_fill_manual(values = c(eave_blue, eave_green))
-
-p1
-summary(as.numeric(df_cc$time_to_hosp))
-
-df_cc %>%
-  group_by(vacc_type) %>%
-  summarise(median=median(time_to_hosp),
-            IQR = IQR(time_to_hosp))
-
-
-
-ggplot(df_cc_ps_matches) +
-  geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2)+
-  geom_vline(xintercept = 14, linetype=2) +
-  facet_grid(age_2~vacc, labeller = labeller(vacc = vaccine_status_label)) +
-  labs(x="Follow-up (days)", fill="Vaccine type", 
-       subtitle = "Follow-up distributions by match group and age group") +
-  annotate("text", x=14.5, y=0.06, label = "14 days", hjust=0, size=3.5)+
-  theme_light() +
-  scale_fill_manual(values = c(eave_blue, eave_green))
-
-
-
-ggplot(df_cc_ps_matches) +
-  geom_density(aes(x=time_to_hosp, fill=vacc), alpha=0.5, adjust=2)+
-  geom_vline(xintercept = 14, linetype=2) +
-  facet_grid(age_2~vacc_type) +
-  labs(x="Follow-up (days)", fill="Vaccine type", 
-       subtitle = "Follow-up distributions by vaccine and age group") +
-  annotate("text", x=14.5, y=0.04, label = "14 days", hjust=0, size=3.5)+
-  theme_light() +
-  scale_fill_manual(values = c(eave_blue, eave_green))
-
-
-
-df_cc_ps_matches %>%
-  group_by(vacc_type, age_2) %>%
-  summarise(median=median(time_to_hosp),
-            IQR = IQR(time_to_hosp),
-            n=n())
-
-gridExtra::grid.arrange(p1, p2)
-
-# By vaccine and event
-ggplot(df_cc_ps_matches) +
-  geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2)+
-  facet_wrap(~event, scales="free")+
-  geom_vline(xintercept = 14, linetype=2)
-
-### By vaccine, event and age
-
-
-# All
-
-ggplot(df_cc_ps_matches) +
-  geom_density(aes(x=time_to_hosp, fill=vacc), alpha=0.5, adjust=2)+
-  facet_grid(age_grp_vacc~event, scales="free")+
-  geom_vline(xintercept = 14, linetype=2) +
-  labs(x="Follow-up (days)", fill="Match group", 
-       subtitle = "Follow-up distributions by vaccine and age group") +
-  annotate("text", x=14.5, y=0.04, label = "14 days", hjust=0, size=3.5)+
-  theme_light() +
-  scale_fill_manual(values = c(eave_blue, eave_green))
-
-# PB
-p2 <- df_cc_ps_matches %>%
-  filter(vacc_type == "PB") %>%
-  ggplot() +
-  geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2)+
-  facet_grid(age_grp_vacc~event, scales="free")+
-  geom_vline(xintercept = 14, linetype=2) +
-  labs(x="Follow-up (days)", fill="Match group", 
-       subtitle = "PB: Follow-up distributions by vaccine and age group") +
-  annotate("text", x=14.5, y=0.04, label = "14 days", hjust=0, size=3.5)+
-  theme_light() +
-  scale_fill_manual(values = c(eave_blue, eave_green), labels=c("Control", "Exposed"))
-
-# AZ
-p3 <- df_cc_ps_matches %>%
-  filter(vacc_type == "AZ") %>%
-  ggplot() +
-  geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2)+
-  facet_grid(age_grp_vacc~event, scales="free")+
-  geom_vline(xintercept = 14, linetype=2) +
-  labs(x="Follow-up (days)", fill="Match group", 
-       subtitle = "AZ: Follow-up distributions by vaccine and age group") +
-  annotate("text", x=14.5, y=0.04, label = "14 days", hjust=0, size=3.5)+
-  theme_light() +
-  scale_fill_manual(values = c(eave_blue, eave_green), labels=c("Control", "Exposed"))
-
-cowplot::plot_grid(p1, p2, p3, labels = "AUTO", ncol=1)
-
-
-ggplot(df_cc) +
-  geom_histogram(aes(x=time_to_hosp, fill=vacc_type), position = "dodge", bins=50) +
-  facet_wrap(~age_gp_5yr)
-
-
-
-
-###### Follow up for all outcomes ######
-df_cc_ps_matches <- df_cc_ps_matches %>%
-  mutate(age_grp = case_when(ageYear < 65 ~"18-64", 
-                             ageYear < 80 ~"65-79",
-                             TRUE ~ "80+")) %>%
-  left_join(select(df_cohort, EAVE_LINKNO, ageYear),
-            by=c("EAVE_LINKNO_vacc" = "EAVE_LINKNO"), 
-            suffix = c("", "_vacc")) %>%
-  mutate(age_grp_vacc = case_when(ageYear_vacc < 65 ~"18-64", 
-                                  ageYear_vacc < 80 ~"65-79",
-                                  TRUE ~ "80+"))
-
-# Overall time to follow up
-ggplot(df_cc_ps_matches) +
-  geom_density(aes(x=time_to_hosp), adjust=2) +
-  geom_vline(xintercept = 14, linetype=2)
-
-df_cc_ps_matches %>%
-  summarise(median=median(time_to_hosp),
-            IQR = IQR(time_to_hosp))
-
-# Split by vaccine
-png(file=paste0("./output/final/matching_summary/followup_vacc.png"),
-    width =600, height=400)
-ggplot(df_cc_ps_matches) +
-  geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2)+
-  geom_vline(xintercept = 14, linetype=2) +
-  theme_light() +
-  scale_fill_manual(values = c(eave_blue, eave_green)) +
-  labs(x="Follow-up (days)", fill="Vaccine type", 
-       subtitle = "Follow-up of exposed and control by vaccine type of exposed") +
-  annotate("text", x=14.5, y=0.04, label = "14 days", hjust=0, size=3.5)
-
-dev.off()
-
-# Split by age group and vaccine 
-png(file=paste0("./output/final/matching_summary/followup_vacc_age.png"),
-    width =600, height=800)
-df_cc_ps_matches %>%
-  ggplot() +
-  geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2) +
-  facet_wrap(~age_grp_vacc, ncol=1)+
-  geom_vline(xintercept = 14, linetype=2) +
-  labs(x="Follow-up (days)", fill="Vaccine type",
-       subtitle = "Follow-up of exposed and control by vaccine type and age group of exposed") +
-  annotate("text", x=14.5, y=0.04, label = "14 days", hjust=0, size=3.5)+
-  theme_light() +
-  scale_fill_manual(values = c(eave_blue, eave_green))
-
-dev.off()
-
-
-# Age, event and vaccine
-png(file=paste0("./output/final/matching_summary/followup_vacc_age_event.png"),
-    width =800, height=800)
-
-ggplot(df_cc_ps_matches) +
-  geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2)+
-  facet_grid(age_grp_vacc~event, scales="free")+
-  geom_vline(xintercept = 14, linetype=2) +
-  labs(x="Follow-up (days)", fill="Vaccine type", 
-       subtitle = "Follow-up distributions by vaccine and age group") +
-  annotate("text", x=14.5, y=0.04, label = "14 days", hjust=0, size=3.5)+
-  theme_light() +
-  scale_fill_manual(values = c(eave_blue, eave_green))
-
-dev.off()
-
-
-
-
-
-
-
-
-#### Person years summary #####
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc,
-                data=df_cc_desc , scale=1, data.frame=TRUE, weights = eave_weight)
-
-z.agg$data
-table(df_cc_desc$vacc)
-
-###### Propensity score matching summary ######
-
-#df_cc_ps_matches <- readRDS("./output/df_cc_ps_matches.rds")
 
 
 
