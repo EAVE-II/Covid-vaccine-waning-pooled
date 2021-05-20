@@ -1,6 +1,14 @@
-#### Summarising matching datasets #####
+##########################################################
+## Title: 1st dose COVID-19 vaccine waning
+## Code author(s): Rachel Mulholland <rachel.mulholland@ed.ac.uk> 
+##                 Chris Robertson <chrisobertson@nhs.net>
+## Description: 03c_matching_ps_summary - Calculates summary stats
+##              and plots for the matched cc cohort
+##########################################################
 
-#### Set up ####
+#### 0 - Set up ####
+
+# Libraries
 library("finalfit")
 
 # Colours 
@@ -18,9 +26,9 @@ z_event_endpoint <- "death_hosp"
 
 ### Load in data based on endpoint
 if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
-df_matches <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_matches_death_hosp.rds")
+df_matches <- readRDS("./output/df_matches_death_hosp.rds")
 
-df_cc_ps_matches <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_cc_death_hosp.rds") %>%
+df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds") %>%
   select(-c(event, time_to_hosp, time_to_event14, period)) %>%
   rename(event = event_hosp, time_to_hosp = time_to_hosp_hosp, time_to_event14 =time_to_event14_hosp,
          period = period_hosp)
@@ -28,20 +36,19 @@ df_cc_ps_matches <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_wani
 z_title <- "COVID-19 hospitalisations"}
 
 if (z_event_endpoint =="death_hosp") {z_event <- covid_hosp_death
-df_matches <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_matches_death_hosp.rds")
-df_cc_ps_matches <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_cc_death_hosp.rds")
+df_matches <- readRDS("./output/df_matches_death_hosp.rds")
+df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds")
 z_title <- "COVID-19 hospitalisations or deaths"
 }
 
 if (z_event_endpoint =="positive_test") {z_event <- positive_test
-#df_matches <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_matches_positive_test.rds")
-df_cc_ps_matches <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_cc_positive_test.rds")
+df_cc_ps_matches <- readRDS("./output/df_cc_positive_test.rds")
 z_title <- "COVID-19 positive infections"
 }
 
 if (z_event_endpoint =="death_covid") {z_event <- covid_death
-df_matches <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_matches_death_hosp.rds")
-df_cc_ps_matches <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_cc_death_hosp.rds")%>%
+df_matches <- readRDS("./output/df_matches_death_hosp.rds")
+df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds")%>%
   select(-c(event, time_to_hosp, time_to_event14, period)) %>%
   rename(event = event_death, time_to_hosp = time_to_hosp_death, time_to_event14 =time_to_event14_death,
          period = period_death)
@@ -49,9 +56,8 @@ z_title <- "COVID-19 deaths"
 }
 
 
+#### 1 - Sample sizes ####
 ## Matches out out total eligible vaccinated ###
-nrow(df_matches)/nrow(z_df)
-
 nrow(df_matches)/nrow(z_chrt)
 
 # No. matches which were vaccinated
@@ -512,7 +518,7 @@ table(df_cc_desc$vacc)
 
 ###### Propensity score matching summary ######
 
-#df_cc_ps_matches <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_cc_ps_matches.rds")
+#df_cc_ps_matches <- readRDS("./output/df_cc_ps_matches.rds")
 
 
 
