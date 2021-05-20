@@ -308,23 +308,17 @@ dev.off()
 
 
 
-##### Overall distribution #####
+##### 5 - Number of matches being used #####
+# Checks how many matches were used repetively
 
-ggplot(df_cc_ps_matches) +
-  geom_density(aes(x=prop_score, fill=vacc), alpha=0.5, adjust=2)
-
-
-### Check number of people used again
+# Top 10
 df_cc_ps_matches %>%
   group_by(EAVE_LINKNO) %>%
   summarise(n=n()) %>%
   arrange(desc(n)) %>%
   head()
-# Max number of times someone was used was 7 times (model 1)
-# For model 2 - most number of times used was 11 (2 people)
-# Chris's update on 10th March - 2 people were used 15 times
-# Final 8th April - max number of times someone was used was 24
 
+# Distribution
 df_cc_ps_matches %>%
   group_by(EAVE_LINKNO) %>%
   summarise(n=n()) %>%
@@ -335,145 +329,41 @@ df_cc_ps_matches %>%
 
 
 ##### Covariate balance #####
+# Uses cov_bal_vacc_fn in 00_functions.R
+# Requires z_chrt_desc from 02_descriptive.R
 
-
-cov_bal_vacc_fn <- function(data, explanatory, z_vacc_type){
-  
-  covariate_balance <- list()
-  
-  ## Find whether it is the matched or original dataset
-  data_tbl <- table(data$vacc, data$vacc_type)
-  
-  # If summaries for uv by vacc type = 0 then this refers to the original dataset
-  if(data_tbl[1,1]==0 &data_tbl[1,2]==0){
-    
-    # Replace the vacc_type for the uv as the z_vacc_type
-    data <- data %>%
-      filter(vacc_type == z_vacc_type | vacc == "uv") %>%
-      mutate(vacc_type = z_vacc_type)
-    
-    
-  } else {
-    data <- data %>%
-      filter(vacc_type == z_vacc_type)
-  }
-  
-  
-  # For each explanatory variable, get the standardised mean differences
-  for(i in 1:length(explanatory)){
-    
-    # Identify whether binary or not
-    n <- data %>%
-      pull(!!sym(explanatory[i]))
-    
-    # If binary then choose a reference level and use this to compare between the other group
-    if(length(unique(n)) == 2){
-      
-      level1 <- max(n)
-      
-      
-      covariate_balance[[i]] <- data %>%
-        mutate(var = ifelse(!!sym(as.character(explanatory)[i]) == level1, 1, 0)) %>%
-        group_by(vacc) %>%
-        summarise(weighted.mean = weighted.mean(var, w= eave_weight, na.rm = T),
-                  var = spatstat.geom::weighted.var(var, w = eave_weight)) %>%
-        mutate(mean.diff = weighted.mean[vacc=="uv"] -  weighted.mean[vacc=="vacc"],
-               sd.pooled = sqrt((var[vacc=="uv"] + var[vacc=="vacc"])/2),
-               smd = mean.diff/sd.pooled) %>%
-        #select(smd) %>%
-        mutate(characteristic = names(explanatory[i])) %>%
-        mutate(levels = level1) %>%
-        distinct()
-      
-      
-    } else
-      # If more than one group, take each level at a time and use as binary variable
-      if(length(unique(n)) > 2){
-        
-        n_levels <- unique(n)
-        
-        
-        covariate_balance_multi <- list()
-        
-        for(j in 1:length(n_levels)){
-          level1 <- n_levels[j]
-          
-          if(!is.na(level1)) {
-            covariate_balance_multi[[j]] <- data %>%
-              mutate(var = ifelse(!!sym(explanatory[i]) == level1, 1, 0)) %>%
-              group_by(vacc) %>%
-              summarise(weighted.mean = weighted.mean(var, w= eave_weight, na.rm=T),
-                        var = spatstat.geom::weighted.var(var, w = eave_weight, na.rm=T)) %>%
-              mutate(mean.diff = weighted.mean[vacc=="uv"] -  weighted.mean[vacc=="vacc"],
-                     sd.pooled = sqrt((var[vacc=="uv"] + var[vacc=="vacc"])/2),
-                     smd = mean.diff/sd.pooled) %>%
-              #select(smd) %>%
-              mutate(characteristic = names(explanatory[i])) %>%
-              mutate(levels = level1) %>%
-              distinct() 
-          } else {
-            
-            covariate_balance_multi[[j]] <- data %>%
-              mutate(var = replace_na(!!sym(explanatory[i]), 1)) %>%
-              mutate(var = ifelse(var == 1, 1, 0)) %>%
-              group_by(vacc) %>%
-              summarise(weighted.mean = weighted.mean(var, w= eave_weight, na.rm=T),
-                        var = spatstat.geom::weighted.var(var, w = eave_weight, na.rm=T)) %>%
-              mutate(mean.diff = weighted.mean[vacc=="uv"] -  weighted.mean[vacc=="vacc"],
-                     sd.pooled = sqrt((var[vacc=="uv"] + var[vacc=="vacc"])/2),
-                     smd = mean.diff/sd.pooled) %>%
-              #select(smd) %>%
-              mutate(characteristic = names(explanatory[i])) %>%
-              mutate(levels = level1) %>%
-              distinct() 
-            
-          }
-          
-          
-          
-        }
-        
-        covariate_balance [[i]] <- covariate_balance_multi %>%
-          reduce(full_join)
-        
-        
-      }
-    
-  }
-  
-  covariate_balance_all <- covariate_balance %>%
-    reduce(full_join) %>%
-    mutate(label = paste0(characteristic, ": ", levels)) %>%
-    relocate(label) %>%
-    arrange(desc(characteristic)) %>%
-    mutate(vacc_type = z_vacc_type)
-  
-  covariate_balance_all
-  
-  
-}
-
+# Labels for vaccines
 vacc_type_label <- c("B) BNT162b2", "A) ChAdOx1")
 names(vacc_type_label) <- c("PB", "AZ")
 
+### Main variables
+
+# Explanatory variables with labels as names
 explanatory <- c("Sex"="Sex", "Age (grouped)" = "age_grp", "Deprivation status" = "simd2020_sc_quintile", 
                  "Urban/Rural index" ="ur6_2016_name", "No. risk groups"="n_risk_gps",
                  "No. previous tests" = "n_tests_gp", "BMI" ="bmi_cat",
                  "Smoker status"="EAVE_Smoke", "BP status"="EAVE_BP")
 
-
+## PB
+# Overall population (crude)
 cb_pb_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
                                  mutate(vacc = recode(vacc1, "0" = "uv", "1" = "vacc")),
                                explanatory = explanatory, z_vacc_type = "PB")
+# Matched population
 cb_pb <- cov_bal_vacc_fn(data = df_cc_desc,
                          explanatory = explanatory, z_vacc_type = "PB")
+
+## AZ
+# Overall population (crude)
 cb_az_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
                                  mutate(vacc = recode(vacc1, "0" = "uv", "1" = "vacc")),
                                explanatory = explanatory, z_vacc_type = "AZ")
+
+# Matched population
 cb_az <- cov_bal_vacc_fn(data = df_cc_desc,
                          explanatory = explanatory, z_vacc_type = "AZ")
 
-
+## Combine tables
 cb_both <- full_join(cb_pb, cb_az) %>%
   mutate(data = "Matched") %>%
   full_join(full_join(cb_pb_crude, cb_az_crude) %>%
@@ -481,13 +371,11 @@ cb_both <- full_join(cb_pb, cb_az) %>%
 
 cb_both
 
-
-
-
+# Save
 write.csv(cb_both, "./output/final/matching_summary/covariate_balance_all.csv")
 
 
-
+# Plot
 png(file=paste0("./output/final/matching_summary/covariate_balance.png"),
     width =800, height=600)
 
@@ -510,7 +398,8 @@ ggplot(cb_both, aes(x=smd, y= label, shape = data, colour = data), size=3) +
 dev.off()
 
 
-#### Risk factors 
+### Risk group variables (for supplementary)
+
 explanatory <- qcovid_diags
 names(explanatory) <- c("Atrial fibrillation", "Asthma", "Blood cancer", "Heart failure",
                         "Cerebalpalsy", "Coronary heart disease", "Cirrhosis", "Congenital  heart disease",
@@ -519,30 +408,31 @@ names(explanatory) <- c("Atrial fibrillation", "Asthma", "Blood cancer", "Heart 
                         "Pulmonary hypertension", "Pulmonary rare", "Peripheral vascular disease", "Rheumatoid arthritis or SLE",
                         "Respiratory cancer", "Severe mental illness", "Sickle cell disease", "Stroke/TIA",
                         "Thrombosis or pulmonary embolus", "Care housing category", "Learning disability or Down's", "Kidney disease")
-
+## PB
 cb_pb_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
                                  mutate(vacc = recode(vacc1, "0" = "uv", "1" = "vacc")),
                                explanatory = explanatory, z_vacc_type = "PB")
 cb_pb <- cov_bal_vacc_fn(data = df_cc_desc,
                          explanatory = explanatory, z_vacc_type = "PB")
+
+## AZ
 cb_az_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
                                  mutate(vacc = recode(vacc1, "0" = "uv", "1" = "vacc")),
                                explanatory = explanatory, z_vacc_type = "AZ")
 cb_az <- cov_bal_vacc_fn(data = df_cc_desc,
                          explanatory = explanatory, z_vacc_type = "AZ")
 
-
+# Join
 cb_both <- full_join(cb_pb, cb_az) %>%
   mutate(data = "Matched") %>%
   full_join(full_join(cb_pb_crude, cb_az_crude) %>%
               mutate(data = "Crude"))
 
 
-
+# Save
 write.csv(cb_both, "./output/final/matching_summary/covariate_balance_rg.csv")
 
-
-
+# Plot
 png(file=paste0("./output/final/matching_summary/covariate_balance_rg.png"),
     width =800, height=600)
 
