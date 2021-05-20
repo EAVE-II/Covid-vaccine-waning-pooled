@@ -301,40 +301,37 @@ dev.off()
 
 
 ##### 2 - Weekly GLM - Overall ####
+# Performs poisson regression using person years of the vacc vs uv at weekly time periods
 
-
-### GLM
-## Time to event - all
+# Create weekly time periods of time to event
 #z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,14,21,28,35,42, max(df_cc_ps_matches$time_to_hosp) ) )
 z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(df_cc_ps_matches$time_to_hosp) ) )
 
-#aggregate for overall
+# Calculate aggregated person years 
 z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr,
                 data=df_cc_ps_matches,scale=1,  data.frame=TRUE)
 
-
-
+# Extract data
 df_res <- z.agg$data
+
+# Calculate rates and prepare for linkage with results
 df_res <- df_res %>% 
   mutate(pyears =sprintf("%.2f",round(pyears/365.25,1))) %>%
   mutate(Rate = round(event/pyears*1000,0)) %>% 
-  #mutate(RR = Rate/first(Rate)) %>%
   mutate(vacc_z.yr = paste0("z.yr", z.yr, ":vacc",vacc)) %>%
   select(-n)
+
 df_res
 
-
-
+# Extract data for GLM
 z_pois <- z.agg$data
 
-# Check without 0-13 days
-z_pois <- z_pois %>%
-  filter(z.yr != "-1+ thru  13")
-
+# GLM model
 z_glm <- glm(event ~ offset(log(pyears)) + -1 + z.yr + z.yr:vacc, 
              family=poisson, data=z_pois)
 summary(z_glm)
 
+# Obtain summary statistics and 95% CIs
 z_glm_est <- as.data.frame(round(exp(cbind(z_glm$coefficients, confint.default(z_glm) ) ), 3)) %>%
   rownames_to_column(var ="vacc_z.yr") %>%
   rename(est=2, lwr = 3, upr = 4) %>%
@@ -346,27 +343,36 @@ z_glm_est <- as.data.frame(round(exp(cbind(z_glm$coefficients, confint.default(z
 
 z_glm_est
 
+# Combine GLM outputs with person years summary
 z_glm_output <- df_res %>%
   left_join(z_glm_est) %>%
   select(-vacc_z.yr)
 
 z_glm_output
 
+# Save
 write.csv(z_glm_output, paste0("./output/final/modelling/", z_event_endpoint, "/poisson_overall.csv"))
 
 
 
-#### GLM - Vaccine Type ####
+#### 3 - Weekly GLM - Vaccine Type ####
+# Performs poisson regression using person years of the vacc vs uv at weekly time periods
+# split by vaccine type
+
+# Create weekly time periods of time to event
 #z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(df_cc_ps_matches$time_to_hosp) ) )
 z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, max(df_cc_ps_matches$time_to_hosp) ) )
 
 
-#aggregate for overall
+# Calculate aggregated person years 
 z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 
+# Extract data
 df_res <- z.agg$data
+
+# Calculate rates and prepare for linkage with results
 df_res <- df_res %>% 
   mutate(pyears =round(pyears/365.25,1)) %>%
   mutate(Rate = round(event/pyears*1000)) %>% 
@@ -375,17 +381,20 @@ df_res <- df_res %>%
   select(-n)
 df_res
 
+# Check sum of events for vaccinated
 sum(df_res$event[which(df_res$vacc == "vacc")])
 
+# Extract for GLM
 z_pois <- z.agg$data
 
-
-
-# PB
+## Carry out GLM for each vaccine
+## PB
+# GLM
 z_glm_pb <- glm(event ~ offset(log(pyears)) + -1 + z.yr + z.yr:vacc, 
              family=poisson, data=z_pois, subset= vacc_type == "PB")
 summary(z_glm_pb)
 
+# GLM outputs
 z_glm_pb_est <- data.frame(round(exp(cbind(z_glm_pb$coefficients, confint.default(z_glm_pb) ) ), 3)) %>%
   rownames_to_column(var ="id") %>%
   mutate(id = paste0(id, ":vacc_typePB")) %>%
@@ -397,12 +406,13 @@ z_glm_pb_est <- data.frame(round(exp(cbind(z_glm_pb$coefficients, confint.defaul
   select(-c(est, lwr, upr))
 
 
-
-# AZ
+## AZ
+# GLM
 z_glm_az <- glm(event ~ offset(log(pyears)) + -1 + z.yr + z.yr:vacc, 
                 family=poisson, data=z_pois, subset= vacc_type == "AZ")
 summary(z_glm_az)
 
+# GLM outputs
 z_glm_az_est <- data.frame(round(exp(cbind(z_glm_az$coefficients, confint.default(z_glm_az) ) ), 3)) %>%
   rownames_to_column(var ="id") %>%
   mutate(id = paste0(id, ":vacc_typeAZ")) %>%
@@ -414,12 +424,12 @@ z_glm_az_est <- data.frame(round(exp(cbind(z_glm_az$coefficients, confint.defaul
   select(-c(est, lwr, upr))
 
 
-# Combine
+## Combine vaccine outputs
 z_glm_vacc_output <- df_res %>%
   left_join(full_join(z_glm_pb_est,z_glm_az_est)) %>%
   select(-id)
 
-
+# Save
 write.csv(z_glm_vacc_output, 
           paste0("./output/final/modelling/", z_event_endpoint, "/poisson_vacc.csv"),
           row.names = F)
@@ -427,151 +437,44 @@ write.csv(z_glm_vacc_output,
 
 
 
-#### GLM - Vaccine Type by age and sex ####
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(df_cc_ps_matches$time_to_hosp) ) )
+#### 4 - Weekly GLM - Vaccine Type by Age and Sex ####
+# Performs poisson regression using person years of the vacc vs uv at weekly time periods
+# split by vaccine type, age (18-64 and 65+) and Sex (female and male)
 
+# Create weekly time periods of time to event
+z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, max(df_cc_ps_matches$time_to_hosp) ) )
+
+# Group age into 2 groups to allow for sufficient sample sizes
 df_cc_ps_matches <- df_cc_ps_matches %>%
   mutate(age_grp2 = ifelse(age_grp == "18-64", "18-64", "65+")) %>%
   left_join(select(df_cohort, EAVE_LINKNO, Sex))
 
-table(df_cc_ps_matches$age_grp, df_cc_ps_matches$age_grp2)
-sum(table(df_cc_ps_matches$Sex))/nrow(df_cc_ps_matches)
-  
 
-## Funtions
-rr_sex <- function(sex){
-  z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type +Sex,
-                  data=df_cc_ps_matches , scale=1, data.frame=TRUE)
-  
-  df_res <- z.agg$data
-  df_res <- df_res %>% 
-    mutate(pyears =round(pyears/365.25,1)) %>%
-    mutate(Rate = round(event/pyears*1000)) %>% 
-    #mutate(RR = Rate/first(Rate)) %>%
-    mutate(id = paste0("z.yr", z.yr, ":vacc",vacc, ":vacc_type", vacc_type)) %>%
-    select(-n)
-  df_res
-  
-  z_pois <- z.agg$data
-  
-  
-  # PB
-  z_glm_pb <- glm(event ~ offset(log(pyears)) + -1 + z.yr + z.yr:vacc, 
-                  family=poisson, data=z_pois, subset= vacc_type == "PB" &
-                    Sex == sex)
-  summary(z_glm_pb)
-  
-  z_glm_pb_est <- data.frame(round(exp(cbind(z_glm_pb$coefficients, confint.default(z_glm_pb) ) ), 3)) %>%
-    rownames_to_column(var ="id") %>%
-    mutate(id = paste0(id, ":vacc_typePB")) %>%
-    rename(est=2, lwr = 3, upr = 4) %>%   
-    mutate(RR_est = paste0(round(est,2), " (", round(lwr,2), ", ", round(upr, 2), ")")) %>%   
-    select(-c(est, lwr, upr))
-  
-  
-  
-  # AZ
-  z_glm_az <- glm(event ~ offset(log(pyears)) + -1 + z.yr + z.yr:vacc, 
-                  family=poisson, data=z_pois, subset= vacc_type == "AZ" &
-                    Sex == sex)
-  summary(z_glm_az)
-  
-  z_glm_az_est <- data.frame(round(exp(cbind(z_glm_az$coefficients, confint.default(z_glm_az) ) ), 3)) %>%
-    rownames_to_column(var ="id") %>%
-    mutate(id = paste0(id, ":vacc_typeAZ")) %>%
-    rename(est=2, lwr = 3, upr = 4) %>%   
-    mutate(RR_est = paste0(round(est,2), " (", round(lwr,2), ", ", round(upr, 2), ")")) %>%  
-    select(-c(est, lwr, upr))
-  
-  
-  # Combine
-  z_glm_vacc_output <- df_res %>%
-    filter(Sex == sex) %>%
-    left_join(full_join(z_glm_pb_est,z_glm_az_est)) %>%
-    rename(group = Sex) %>%
-    select(-id)
-  
-  z_glm_vacc_output
-  
-  
-}
 
-rr_age <- function(age){
-  z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type +age_grp2,
-                  data=df_cc_ps_matches , scale=1, data.frame=TRUE)
-  
-  df_res <- z.agg$data
-  df_res <- df_res %>% 
-    mutate(pyears =round(pyears/365.25,1)) %>%
-    mutate(Rate = round(event/pyears*1000)) %>% 
-    #mutate(RR = Rate/first(Rate)) %>%
-    mutate(id = paste0("z.yr", z.yr, ":vacc",vacc, ":vacc_type", vacc_type)) %>%
-    select(-n)
-  df_res
-  
-  z_pois <- z.agg$data
-  
-  # PB
-  z_glm_pb <- glm(event ~ offset(log(pyears)) + -1 + z.yr + z.yr:vacc, 
-                  family=poisson, data=z_pois, subset= vacc_type == "PB" &
-                    age_grp2 == age)
-  summary(z_glm_pb)
-  
-  z_glm_pb_est <- data.frame(round(exp(cbind(z_glm_pb$coefficients, confint.default(z_glm_pb) ) ), 3)) %>%
-    rownames_to_column(var ="id") %>%
-    mutate(id = paste0(id, ":vacc_typePB")) %>%
-    rename(est=2, lwr = 3, upr = 4) %>%   
-    mutate(RR_est = paste0(round(est,2), " (", round(lwr,2), ", ", round(upr, 2), ")")) %>%   
-    select(-c(est, lwr, upr))
-  
-  
-  
-  # AZ
-  z_glm_az <- glm(event ~ offset(log(pyears)) + -1 + z.yr + z.yr:vacc, 
-                  family=poisson, data=z_pois, subset= vacc_type == "AZ" &
-                    age_grp2 == age)
-  summary(z_glm_az)
-  
-  z_glm_az_est <- data.frame(round(exp(cbind(z_glm_az$coefficients, confint.default(z_glm_az) ) ), 3)) %>%
-    rownames_to_column(var ="id") %>%
-    mutate(id = paste0(id, ":vacc_typeAZ")) %>%
-    rename(est=2, lwr = 3, upr = 4) %>%   
-    mutate(RR_est = paste0(round(est,2), " (", round(lwr,2), ", ", round(upr, 2), ")")) %>%  
-    select(-c(est, lwr, upr))
-  
-  
-  # Combine
-  z_glm_vacc_output <- df_res %>%
-    filter(age_grp2 == age) %>%
-    left_join(full_join(z_glm_pb_est,z_glm_az_est)) %>%
-    rename(group = age_grp2) %>%
-    select(-id)
-  
-  z_glm_vacc_output
-  
-  
-}
-    
+## Calculate weekly RR for age group and sex
+# Use GLM_rr_var function in 00_functions.R
+
+# Get unique levels
 age_list <- unique(df_cc_ps_matches$age_grp2)
 sex_list <- unique(df_cc_ps_matches$Sex)
 
+# Assign RRs to list
 z_glm_list <- list()   
     
-z_glm_list[[1]] <- rr_sex(sex_list[1])
-z_glm_list[[2]] <- rr_sex(sex_list[2])
-z_glm_list[[3]] <- rr_age(age_list[1])
-z_glm_list[[4]] <- rr_age(age_list[2])
+z_glm_list[[1]] <- GLM_rr_var("Sex", sex_list[1])
+z_glm_list[[2]] <- GLM_rr_var("Sex",sex_list[2])
+z_glm_list[[3]] <- GLM_rr_var("age_grp2",age_list[1])
+z_glm_list[[4]] <- GLM_rr_var("age_grp2",age_list[2])
     
+# Create into data frame 
 z_glm_outputs <- z_glm_list %>%
   reduce(full_join)
   
 z_glm_outputs
 
-
-
+# Save
 write.csv(z_glm_outputs, paste0("./output/final/modelling/", z_event_endpoint, "/poisson_vacc_age_sex.csv"))
 
-write.csv(z_glm_outputs, paste0("./output/final/modelling/", z_event_endpoint, "/poisson_vacc_age.csv"))
 
 ##### GAM Overall ####
 library(mgcv)

@@ -232,3 +232,76 @@ cov_bal_vacc_fn <- function(data, explanatory, z_vacc_type){
 }
 
 
+
+
+##### Weekly GLM relative risk ratios by a variable ####
+# Calculates weekly relative risk of event between uv and vacc matches by a subset
+
+# Input:
+# - variable = variable to subset
+# - level = level of interest to subset variable to
+
+
+GLM_rr_var <- function(variable, level){
+  
+  z.fmla <- as.formula(paste("Surv(time_to_hosp,event)",
+                             " ~ vacc + z.yr + vacc_type +",
+                             paste(variable, collapse= "+")))
+  
+  z.agg <- pyears(z.fmla,
+                  data=df_cc_ps_matches , scale=1, data.frame=TRUE)
+  
+  df_res <- z.agg$data
+  df_res <- df_res %>% 
+    mutate(pyears =round(pyears/365.25,1)) %>%
+    mutate(Rate = round(event/pyears*1000)) %>% 
+    #mutate(RR = Rate/first(Rate)) %>%
+    mutate(id = paste0("z.yr", z.yr, ":vacc",vacc, ":vacc_type", vacc_type)) %>%
+    select(-n) %>%
+    # Subset to function 
+    filter(!!sym(variable) == level)
+  df_res
+  
+  z_pois <- z.agg$data %>%
+    # Subset to function 
+    filter(!!sym(variable) == level)
+  
+  
+  # PB
+  z_glm_pb <- glm(event ~ offset(log(pyears)) + -1 + z.yr + z.yr:vacc, 
+                  family=poisson, data=z_pois, subset= vacc_type == "PB")
+  summary(z_glm_pb)
+  
+  z_glm_pb_est <- data.frame(round(exp(cbind(z_glm_pb$coefficients, confint.default(z_glm_pb) ) ), 3)) %>%
+    rownames_to_column(var ="id") %>%
+    mutate(id = paste0(id, ":vacc_typePB")) %>%
+    rename(est=2, lwr = 3, upr = 4) %>%   
+    mutate(RR_est = paste0(round(est,2), " (", round(lwr,2), ", ", round(upr, 2), ")")) %>%   
+    select(-c(est, lwr, upr))
+  
+  
+  
+  # AZ
+  z_glm_az <- glm(event ~ offset(log(pyears)) + -1 + z.yr + z.yr:vacc, 
+                  family=poisson, data=z_pois, subset= vacc_type == "AZ")
+  summary(z_glm_az)
+  
+  z_glm_az_est <- data.frame(round(exp(cbind(z_glm_az$coefficients, confint.default(z_glm_az) ) ), 3)) %>%
+    rownames_to_column(var ="id") %>%
+    mutate(id = paste0(id, ":vacc_typeAZ")) %>%
+    rename(est=2, lwr = 3, upr = 4) %>%   
+    mutate(RR_est = paste0(round(est,2), " (", round(lwr,2), ", ", round(upr, 2), ")")) %>%  
+    select(-c(est, lwr, upr))
+  
+  
+  # Combine
+  z_glm_vacc_output <- df_res %>%
+    left_join(full_join(z_glm_pb_est,z_glm_az_est)) %>%
+    rename(group = !!sym(variable)) %>%
+    select(-id)
+  
+  z_glm_vacc_output
+  
+  
+}
+
