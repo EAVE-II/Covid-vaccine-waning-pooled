@@ -8,12 +8,13 @@
 
 #### 0 - Set up ####
 
-# Note: Paper uses sections 3, 6, 7 and 8
+# Note: Paper uses sections 3, 6 and 7
 
 # Libraries
-library(survival)
-library(survminer)
-library(mgcv)
+library("survival")
+library("survminer")
+library("mgcv")
+library("cowplot")
 
 # Colours 
 eave_green <- rgb(54, 176, 136, maxColorValue = 255)
@@ -790,316 +791,22 @@ dev.off()
 
 
 
-##### GAM - Age and Sex ######
-
+##### 7 - GAM - Age and Sex ######
+# Use function GAM_rr_var from 00_functions.R
 
 df_cc_ps_matches <- df_cc_ps_matches %>%
   mutate(age_grp2 = ifelse(age_grp == "18-64", "18-64", "65+")) %>%
   left_join(select(df_cohort, EAVE_LINKNO, Sex))
 
 
-## Functions
-# Age
-gam_age_fn <- function(z_vacc_type, z_age){
-
-if(z_vacc_type == "PB"){
-  z_vacc_title = "BNT162b2"
-} else {
-  z_vacc_title = "ChAdOx1"
-}
-
-### C: GAM
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_hosp),by=1) ))
-
-
-#aggregate for overall
-
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type + age_grp2,
-                data=df_cc_ps_matches , scale=1, data.frame=TRUE)
-
-
-
-z_pois <- z.agg$data %>%
-  mutate(day =  as.numeric(z.yr)-1) %>%
-  filter(vacc_type == z_vacc_type) %>%
-  filter(age_grp2 == z_age)
-
-
-z_gam_vacc <- gam(event ~ offset(log(pyears)) + vacc + s(day, by=vacc), 
-                  knots = list(day = seq(14,70, by =7)), 
-                  family=poisson, data=z_pois, subset= vacc_type == z_vacc_type)
-
-
-
-# Create cut off so length of vacc and uv match
-z <- z_pois %>%
-  group_by(z.yr) %>%
-  summarise(n=n()) %>%
-  filter(n == 2)
-
-
-
-## Plot GAM RR
-#for using for predictions
-z_nd <- z_pois %>%
-  filter(z.yr %in% z$z.yr)
-
-#this is where the modelling starts
-z_p <- mgcv::predict.gam(z_gam_vacc, newdata=z_nd, type="lpmatrix")
-
-
-#columns
-c_uv <- grepl(":vaccuv", colnames(z_p)) #smoothcolumns for unvacc
-c_vacc <- grepl(":vaccvacc", colnames(z_p))  #smooth columns for vacc
-
-#rows
-r_uv <- with(z_nd, vacc=="uv")
-r_vacc <- with(z_nd, vacc=="vacc")
-
-#difference
-X <- z_p[r_vacc,] - z_p[r_uv,]
-
-#zero other columns
-X[,!(c_uv | c_vacc)] <- 0
-
-#set vaccine column to 1 to get the effect
-X[, "vaccvacc"] <- 1
-
-#offset difference
-offset_diff <- log(z_nd[r_uv,"pyears"]) - log(z_nd[r_vacc,"pyears"])
-
-
-
-difference <- X %*% coef(z_gam_vacc) + offset_diff
-
-se_difference <- sqrt(rowSums((X %*% vcov(z_gam_vacc, unconditional=TRUE)) * X))
-z_lcl <- difference - 1.96*se_difference
-z_ucl <- difference + 1.96*se_difference
-
-
-z_rr <- tibble(rr = exp(difference),
-               rr_lwr = exp(z_lcl),
-               rr_upr = exp(z_ucl),
-               day = 1:length(difference),
-               rr_ci = paste0(round(rr,2), " (", round(rr_lwr,2), ", ", round(rr_upr,2), ")"))
-
-z_rr <- z_rr %>%
-  left_join(filter(z_pois, vacc == "vacc") %>%
-              select(event, day) %>%
-              rename(event_vacc =event))
-z_rr <- z_rr %>%
-  left_join(filter(z_pois, vacc == "uv") %>%
-              select(event, day) %>%
-              rename(event_uv =event))
-
-
-## P-value for quadratic term post 14 days
-z_quad <- glm(event ~ offset(log(pyears)) +  day*vacc + I(day^2)*vacc, 
-              family=poisson, data=z_pois, subset = vacc_type == z_vacc_type & day > 14)
-
-zz_p <-predict.glm(z_quad, newdata=z_nd, type="response")
-z_nd$fit <- zz_p
-z_nd$prate <- z_nd$fit/z_nd$pyears
-
-z_quad_sum <- summary(z_quad)$coefficients
-upr <- summary(z_quad)$coefficients[6,1] + 1.96*summary(z_quad)$coefficients[6,2]
-lwr <- summary(z_quad)$coefficients[6,1] - 1.96*summary(z_quad)$coefficients[6,2]
-
-
-
-# Plot
-p_c <- z_rr %>%
-  mutate(rr_upr = if_else(rr_upr>3, 3, rr_upr)) %>%
-  ggplot() +
-  geom_line(aes(x=day, y=rr), col=eave_blue) +
-  geom_ribbon(aes(x=day, ymin=rr_lwr, ymax=rr_upr), alpha = 0.25, fill=eave_blue) +
-  labs(x="Days to event", y="RR",
-       subtitle = paste0("Age group: ", z_age),
-       caption = paste0("Vaccinated quadratic coefficient after 14 days: ",round(z_quad_sum[6,1],4),
-                        #" (", round(upr,3), ", ",round(lwr,3),"), 
-                        ", p.value = ", round(z_quad_sum[6,4],3))) +
-  geom_vline(xintercept = 14, linetype=2) +
-  annotate("text", x=14.5, y=2, label = "14 days", hjust=0, size=3.5)+
-  theme_light() +
-  lims(y=c(0,3)) +
-  geom_hline(yintercept = 1, linetype = 1) +
-  geom_hline(yintercept = 0.5, linetype = 3) +
-  annotate("text", x=80, y=0.6, label = "Waning threshold", size=3) +
-  scale_x_continuous(breaks = seq(14,84, by = 7), 
-                     limits = c(0,70))
-
-
-# Weekly z_rr
-z_rr_wkly <- z_rr %>%
-  #mutate(rr_upr = ifelse(rr_upr==3, Inf, rr_upr)) %>%
-  filter(day %in% seq(14,84, by = 14)) %>%
-  mutate(rr_ci = paste0(round(rr,2), " (", round(rr_lwr,2), ", ", round(rr_upr,2), ")")) %>%
-  mutate(y=1)
-
-
-p_c <- p_c +
-  geom_text(aes(x=day, y=0, label = rr_ci), check_overlap = T, size=2, data=z_rr_wkly, inherit.aes = F)
-
-p_c
-
-}
-
-# Sex
-gam_sex_fn <- function(z_vacc_type, z_sex){
-  
-  if(z_vacc_type == "PB"){
-    z_vacc_title = "BNT162b2"
-  } else {
-    z_vacc_title = "ChAdOx1"
-  }
-  
-  ### C: GAM
-  z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_hosp),by=1) ))
-  
-  
-  #aggregate for overall
-  
-  z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type + Sex,
-                  data=df_cc_ps_matches , scale=1, data.frame=TRUE)
-  
-  
-  
-  z_pois <- z.agg$data %>%
-    mutate(day =  as.numeric(z.yr)-1) %>%
-    filter(vacc_type == z_vacc_type) %>%
-    filter(Sex == z_sex)
-  
-  
-  z_gam_vacc <- gam(event ~ offset(log(pyears)) + vacc + s(day, by=vacc), 
-                    knots = list(day = seq(14,70, by =7)), 
-                    family=poisson, data=z_pois, subset= vacc_type == z_vacc_type)
-  
-  # Create cut off so length of vacc and uv match
-  z <- z_pois %>%
-    group_by(z.yr) %>%
-    summarise(n=n()) %>%
-    filter(n == 2)
-  
-  
-  
-  ## Plot GAM RR
-  #for using for predictions
-  z_nd <- z_pois %>%
-    filter(z.yr %in% z$z.yr)
-  
-  #this is where the modelling starts
-  z_p <- mgcv::predict.gam(z_gam_vacc, newdata=z_nd, type="lpmatrix")
-  
-  
-  #columns
-  c_uv <- grepl(":vaccuv", colnames(z_p)) #smoothcolumns for unvacc
-  c_vacc <- grepl(":vaccvacc", colnames(z_p))  #smooth columns for vacc
-  
-  #rows
-  r_uv <- with(z_nd, vacc=="uv")
-  r_vacc <- with(z_nd, vacc=="vacc")
-  
-  #difference
-  X <- z_p[r_vacc,] - z_p[r_uv,]
-  
-  #zero other columns
-  X[,!(c_uv | c_vacc)] <- 0
-  
-  #set vaccine column to 1 to get the effect
-  X[, "vaccvacc"] <- 1
-  
-  #offset difference
-  offset_diff <- log(z_nd[r_uv,"pyears"]) - log(z_nd[r_vacc,"pyears"])
-  
-  
-  
-  difference <- X %*% coef(z_gam_vacc) + offset_diff
-  
-  se_difference <- sqrt(rowSums((X %*% vcov(z_gam_vacc, unconditional=TRUE)) * X))
-  z_lcl <- difference - 1.96*se_difference
-  z_ucl <- difference + 1.96*se_difference
-  
-  
-  z_rr <- tibble(rr = exp(difference),
-                 rr_lwr = exp(z_lcl),
-                 rr_upr = exp(z_ucl),
-                 day = 1:length(difference),
-                 rr_ci = paste0(round(rr,2), " (", round(rr_lwr,2), ", ", round(rr_upr,2), ")"))
-  
-  z_rr <- z_rr %>%
-    left_join(filter(z_pois, vacc == "vacc") %>%
-                select(event, day) %>%
-                rename(event_vacc =event))
-  z_rr <- z_rr %>%
-    left_join(filter(z_pois, vacc == "uv") %>%
-                select(event, day) %>%
-                rename(event_uv =event))
-  
-  
-  ## P-value for quadratic term post 14 days
-  z_quad <- glm(event ~ offset(log(pyears)) +  day*vacc + I(day^2)*vacc, 
-                family=poisson, data=z_pois, subset = vacc_type == z_vacc_type & day > 14)
-  
-  zz_p <-predict.glm(z_quad, newdata=z_nd, type="response")
-  z_nd$fit <- zz_p
-  z_nd$prate <- z_nd$fit/z_nd$pyears
-  
-  z_quad_sum <- summary(z_quad)$coefficients
-  upr <- summary(z_quad)$coefficients[6,1] + 1.96*summary(z_quad)$coefficients[6,2]
-  lwr <- summary(z_quad)$coefficients[6,1] - 1.96*summary(z_quad)$coefficients[6,2]
-  
-  
-  
-  # Plot
-  p_c <- z_rr %>%
-    mutate(rr_upr = if_else(rr_upr>3, 3, rr_upr)) %>%
-    ggplot() +
-    geom_line(aes(x=day, y=rr), col=eave_blue) +
-    geom_ribbon(aes(x=day, ymin=rr_lwr, ymax=rr_upr), alpha = 0.25, fill=eave_blue) +
-    labs(x="Days to event", y="RR",
-         subtitle = paste0("Sex: ", z_sex),
-         caption = paste0("Vaccinated quadratic coefficient after 14 days: ",round(z_quad_sum[6,1],4),
-                          #" (", round(upr,3), ", ",round(lwr,3),"), 
-                          ", p.value = ", round(z_quad_sum[6,4],3))) +
-    geom_vline(xintercept = 14, linetype=2) +
-    annotate("text", x=14.5, y=2, label = "14 days", hjust=0, size=3.5)+
-    theme_light() +
-    lims(y=c(0,3)) +
-    geom_hline(yintercept = 1, linetype = 1) +
-    geom_hline(yintercept = 0.5, linetype = 3) +
-    annotate("text", x=80, y=0.6, label = "Waning threshold", size=3) +
-    scale_x_continuous(breaks = seq(14,84, by = 7), 
-                       limits = c(0,70))
-  
-  
-  # Weekly z_rr
-  z_rr_wkly <- z_rr %>%
-    #mutate(rr_upr = ifelse(rr_upr==3, Inf, rr_upr)) %>%
-    filter(day %in% seq(14,84, by = 14)) %>%
-    mutate(rr_ci = paste0(round(rr,2), " (", round(rr_lwr,2), ", ", round(rr_upr,2), ")")) %>%
-    mutate(y=1)
-  
-  
-  p_c <- p_c +
-    geom_text(aes(x=day, y=0, label = rr_ci), check_overlap = T, size=2, data=z_rr_wkly, inherit.aes = F)
-  
-  p_c
-  
-}
-
-
-
-## Combine together
-library("cowplot")
-
-# AZ
+## AZ
 p_title <- ggdraw() +
   draw_label(paste0("Rate ratios of ", z_title," for ChAdOx1 by age and sex"),
              size=10)
-p1 <- gam_age_fn("AZ", "18-64")
-p2 <- gam_age_fn("AZ", "65+")
-p3 <- gam_sex_fn("AZ", "F")
-p4 <- gam_sex_fn("AZ", "M")
+p1 <- GAM_rr_var("AZ", "age_grp","18-64")
+p2 <- GAM_rr_var("AZ", "age_grp","65+")
+p3 <- GAM_rr_var("AZ", "Sex","F")
+p4 <- GAM_rr_var("AZ", "Sex","M")
 
 
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/plots/gam_RR_agesex_AZ.png"),
@@ -1115,10 +822,10 @@ dev.off()
 p_title <- ggdraw() +
   draw_label(paste0("Rate ratios of ", z_title," for BNT162b2 by age and sex"),
              size=10)
-p1 <- gam_age_fn("PB", "18-64")
-p2 <- gam_age_fn("PB", "65+")
-p3 <- gam_sex_fn("PB", "F")
-p4 <- gam_sex_fn("PB", "M")
+p1 <- gam_age_fn("PB", "age_grp","18-64")
+p2 <- gam_age_fn("PB","age_grp", "65+")
+p3 <- gam_sex_fn("PB","Sex", "F")
+p4 <- gam_sex_fn("PB","Sex", "M")
 
 
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/plots/gam_RR_agesex_PB.png"),
@@ -1130,7 +837,7 @@ plot_grid(p_title, plot_grid(p1, p2, p3, p4, labels = "AUTO", ncol=2), ncol=1,
 dev.off() 
 
 
-##### GAMS with different knots #####
+##### 8 - GAMS with different knots (Experimental) #####
 z_vacc_type <- "PB"
 z_vacc_type <- "AZ"
 
@@ -1288,90 +995,3 @@ p_c
 
 
 
-
-
-##### Previous GAM version (by hand) - do not use #####
-# time_to_hosp =z.year as days rather than weeks
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1:max(df_cc_ps_matches$time_to_hosp) ) )
-
-#aggregate for overall
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type,
-                data=df_cc_ps_matches , scale=1, data.frame=TRUE)
-
-
-z_pois <- z.agg$data %>%
-  mutate(day =  as.numeric(z.yr)-1) %>%
-  filter(!(day %in% c(1:13)) &
-           vacc_type == z_vacc_type)
-
-z_gam_vacc <- gam(event ~ offset(log(pyears)) + -1 + vacc + s(as.numeric(z.yr), by=vacc), 
-                  family=poisson, data=z_pois, subset= vacc_type == z_vacc_type)
-
-# Ratio of the two lines for un and vacc
-# Predict risk of event
-z_pois_pred <- z_pois %>%
-  filter(vacc_type == z_vacc_type)
-z_pred <- predict(z_gam_vacc, newdata=z_pois_pred, type="response", se =T) # lpmatrix
-z_pois_pred$est <- z_pred$fit
-z_pois_pred$mu <- (z_pred$fit)^2
-z_pois_pred$var.fit <- (z_pred$se.fit)^2
-z_pois_pred$upr <- z_pred$fit + 1.96*z_pred$se.fit
-z_pois_pred$lwr <- z_pred$fit - 1.96*z_pred$se.fit
-
-# Ratios
-
-z_pois_pred_rr <- z_pois_pred %>%
-  group_by(z.yr) %>%
-  mutate(RR = est[vacc == "vacc"]/est[vacc == "uv"]) %>%
-  mutate(var1 = (mu[vacc == "vacc"])/(mu[vacc == "uv"])) %>%
-  mutate(var2 = (var.fit[vacc == "vacc"])/(mu[vacc == "vacc"]) + 
-           (var.fit[vacc == "uv"])/(mu[vacc == "uv"])) %>%
-  mutate(var = var1*var2) %>%
-  select(-c(vacc, pyears, n, event, est, upr, lwr, var.fit, var1, var2)) %>%
-  distinct() %>%
-  mutate(upr = RR + 1.96*sqrt(var)) %>%
-  mutate(lwr=RR - 1.96*sqrt(var))
-
-z_pois_pred_rr
-
-
-
-#truncate for plot
-z_pois_pred_rr$upr[z_pois_pred_rr$upr>=3] <- 3
-z_pois_pred_rr$lwr[z_pois_pred_rr$lwr<0] <- 0
-
-ggplot(z_pois_pred_rr) +
-  geom_line(aes(x=as.numeric(z.yr), y=RR), col=eave_blue) +
-  geom_ribbon(aes(x=as.numeric(z.yr), ymin=lwr, ymax=upr), alpha = 0.25, fill=eave_blue) +
-  #scale_color_manual(values = c(eave_blue, eave_green), labels=c("Control", "Exposed"))+
-  #scale_fill_manual(values = c(eave_blue, eave_green), labels=c("Control", "Exposed")) +
-  labs(x="Days to event", fill="Vaccination group", 
-       subtitle = paste0("GAM Relative Risks for ", z_vacc_type)) +
-  geom_vline(xintercept = 14, linetype=2) +
-  #annotate("text", x=14.5, y=150, label = "14 days", hjust=0, size=3.5)+
-  theme_light() +
-  lims(y=c(0,3), x=c(0,84)) +
-  geom_hline(yintercept = 1, linetype = 1) +
-  geom_hline(yintercept = 0.5, linetype = 3) +
-  annotate("text", x=80, y=0.6, label = "Waning threshold", size=3)
-
-
-## Old
-# No longer needed
-gam_rrs <- ggplot(z_rr_wkly) +
-  #geom_point(aes(x=days, y= 0.9), shape =15) +
-  geom_text(aes(x=day, y=1, label = rr_ci), check_overlap = T, size=3.5) +
-  #geom_text(aes(x=day, y=0.97, label = event), check_overlap = T, size=3.5) +
-  labs(y="", x="") +
-  lims(y=c(1.01, 0.95), x=c(14,84)) +
-  #annotate("text", x=1, y=0.97, label="No. events:")+
-  annotate("text", x=1, y=1, label="RR (95% CI):")+
-  theme_bw() +
-  theme(axis.line = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank(),
-        axis.text = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.y = element_text(angle = 0)) 
