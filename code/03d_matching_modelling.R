@@ -560,101 +560,24 @@ ggplot(z_pois_pred_rr) +
 dev.off()
 
 
-###  GAM Vaccine type ####
-
-# time_to_hosp =z.year as days rather than weeks
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1:max(df_cc_ps_matches$time_to_hosp) ) )
-
-#aggregate for overall
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type,
-                data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 
-z_pois <- z.agg$data
+#### 6 - GAM and Cumulative plots by Vaccine type ####
+# Final figures for publication by vacc type
+# Was a function but didn't work with saving files automatically
 
-
-# PB
-z_gam_pb <- gam(event ~ offset(log(pyears)) + -1 + vacc + s(as.numeric(z.yr), by=vacc), 
-             family=poisson, data=z_pois, subset= vacc_type == "PB")
-
-
-summary(z_gam_pb)
-
-par(mfrow=c(1,3))
-plot(z_gam_pb)
-
-
-# AZ
-z_gam_az <- gam(event ~ offset(log(pyears)) + s(as.numeric(z.yr), by=vacc)+ vacc, 
-                family=poisson, data=z_pois, subset= vacc_type == "AZ")
-
-par(mfrow=c(1,2))
-plot(z_gam_az)
-
-
-
-# Predict risk of event
-z_pois_pred <- z_pois %>%
-  mutate(id = paste0("z.yr", z.yr, ":vacc",vacc, ":vacc_type", vacc_type))
-
-z_pred_pb <- predict(z_gam_pb, newdata=z_pois_pred %>%
-                       filter(vacc_type == "PB"), type="response", se =T)
-
-z_pred_pb_df <- tibble(est = z_pred_pb$fit,
-                              upr = z_pred_pb$fit + 1.96*z_pred_pb$se.fit,
-                              lwr = z_pred_pb$fit - 1.96*z_pred_pb$se.fit,
-                       id = z_pois_pred %>%
-                         filter(vacc_type == "PB") %>%
-                         pull(id))
-
-z_pred_az <- predict(z_gam_az, newdata=z_pois_pred %>%
-                       filter(vacc_type == "AZ"), type="response", se =T)
-
-z_pred_az_df <- tibble(est = z_pred_az$fit,
-                       upr = z_pred_az$fit + 1.96*z_pred_az$se.fit,
-                       lwr = z_pred_az$fit - 1.96*z_pred_az$se.fit,
-                       id = z_pois_pred %>%
-                         filter(vacc_type == "AZ") %>%
-                         pull(id))
-
-z_pred_vacc <- full_join(z_pred_pb_df, z_pred_az_df)
-
-z_pois_pred <- z_pois_pred %>%
-  left_join(z_pred_vacc)
-
-
-png(file=paste0("./output/final/modelling/", z_event_endpoint, "/gam_vacc.png"),
-    width = 700, height=400)
-
-ggplot(z_pois_pred) +
-  geom_line(aes(x=as.numeric(z.yr), y=est, col=vacc)) +
-  geom_ribbon(aes(x=as.numeric(z.yr), ymin=lwr, ymax=upr, fill = vacc), alpha = 0.5) +
-  facet_wrap(~vacc_type) + 
-  scale_color_manual(values = c(eave_blue, eave_green), labels=c("Control", "Exposed"))+
-  scale_fill_manual(values = c(eave_blue, eave_green), labels=c("Control", "Exposed")) +
-  labs(x="Days to event", fill="Vaccination group",col="Vaccination group", 
-       subtitle = "") +
-  geom_vline(xintercept = 14, linetype=2) +
-  annotate("text", x=14.5, y=150, label = "14 days", hjust=0, size=3.5)+
-  theme_light() 
-
-dev.off()
-
-
-
-###### Final figures by vacc type - cumulative risks and GAMs #########
-
+# Select vaccine type
 z_vacc_type <- "PB"
 z_vacc_type <- "AZ"
 
+# Assign vaccine title
 if(z_vacc_type == "PB"){
   z_vacc_title = "BNT162b2"
 } else {
   z_vacc_title = "ChAdOx1"
 }
 
-model_outputs_vacc <- function(z_vacc_type){
-  
+
 ### A: Overall cumulative plot
 p_b_list <- list()
   
@@ -696,7 +619,7 @@ p_b_list[[4]] <- ggsurvplot(z, data = df_cc_ps_matches, fun = "event", conf.int 
 p_b <- arrange_ggsurvplots(p_b_list, ncol=1, nrow=4, print=T)
 
 
-
+# Save
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/plots/cumulative_risks_",z_vacc_type,".png"),
     width = 600, height=900)
 p_b
@@ -705,36 +628,32 @@ dev.off()
 
 
 ### C: GAM
+# Daily z.yr
 z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_hosp),by=1) ))
 
 
-#aggregate for overall
-
+# Person years
 z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
-z.agg$data %>% mutate(long = as.numeric(z.yr) >70) %>% group_by(vacc, vacc_type, long) %>% summarise(N=sum(event))
+# Calculate the number of events post 70 days (cut off due to low numbers)
+z.agg$data %>% mutate(long = as.numeric(z.yr) >70) %>% 
+  group_by(vacc, vacc_type, long) %>% summarise(N=sum(event))
 
-
+# Take data and subset to vaccine type
 z_pois <- z.agg$data %>%
   mutate(day =  as.numeric(z.yr)-1) %>%
-  filter(vacc_type == z_vacc_type) #%>%
-  #filter(day %in% 1:70)
+  filter(vacc_type == z_vacc_type) 
 
-
+# GAM
 z_gam_vacc <- gam(event ~ offset(log(pyears)) + vacc + s(day, by=vacc), 
                   knots = list(day = seq(14,70, by =7)), 
                   family=poisson, data=z_pois, subset= vacc_type == z_vacc_type)
 
-# Compare linearity
-#z_gam_vacc2 <- gam(event ~ offset(log(pyears)) + vacc + s(day), 
-                 # family=poisson, data=z_pois, subset= vacc_type == z_vacc_type)
 
 
-#AIC(z_gam_vacc, z_gam_vacc2)
-
-
-## Plot GAM RR
+## Calculate GAM RR
+# Uses methods from https://fromthebottomoftheheap.net/2017/10/10/difference-splines-i/
 
 z_nd <- z_pois  #for using for predictions
 
@@ -762,21 +681,21 @@ X[, "vaccvacc"] <- 1
 #offset difference
 offset_diff <- log(z_nd[r_uv,"pyears"]) - log(z_nd[r_vacc,"pyears"])
 
-
-
 difference <- X %*% coef(z_gam_vacc) + offset_diff
 
+# Obtain 95% CIs
 se_difference <- sqrt(rowSums((X %*% vcov(z_gam_vacc, unconditional=TRUE)) * X))
 z_lcl <- difference - 1.96*se_difference
 z_ucl <- difference + 1.96*se_difference
 
-
+# Create dataset with RRs and 95% CIs for plotting
 z_rr <- tibble(rr = exp(difference),
                rr_lwr = exp(z_lcl),
                rr_upr = exp(z_ucl),
                day = 1:length(difference),
                rr_ci = paste0(round(rr,2), " (", round(rr_lwr,2), ", ", round(rr_upr,2), ")"))
 
+# Join on no. events for vacc and uv
 z_rr <- z_rr %>%
   left_join(filter(z_pois, vacc == "vacc") %>%
               select(event, day) %>%
@@ -786,30 +705,33 @@ z_rr <- z_rr %>%
               select(event, day) %>%
               rename(event_uv =event))
 
-#truncate for plot
-#z_rr$rr_upr[z_rr$rr_upr>=3] <- 3
 
-# Table
+
+# Save table
 write.csv(z_rr, paste0("./output/final/modelling/", z_event_endpoint, "/poisson_gam_", z_vacc_type, ".csv"))
 
-## P-value for quadratic term post 14 days
+## Waning p-value
+# p-value for quadratic term post 14 days
 z_quad <- glm(event ~ offset(log(pyears)) +  day*vacc + I(day^2)*vacc, 
               family=poisson, data=z_pois, subset = vacc_type == z_vacc_type & day > 14)
 z_linear <- glm(event ~ offset(log(pyears)) +  day*vacc, 
               family=poisson, data=z_pois, subset = vacc_type == z_vacc_type & day > 14)
+
 summary(z_quad)
+# Check
 zz_p <-predict.glm(z_quad, newdata=z_nd, type="response")
 z_nd$fit <- zz_p
 z_nd$prate <- z_nd$fit/z_nd$pyears
 z_nd %>% ggplot(aes(x=day, y=prate, colour=vacc)) + geom_line()
 
+# Get estimates and 95% CIs
 z_quad_sum <- summary(z_quad)$coefficients
 upr <- summary(z_quad)$coefficients[6,1] + 1.96*summary(z_quad)$coefficients[6,2]
 lwr <- summary(z_quad)$coefficients[6,1] - 1.96*summary(z_quad)$coefficients[6,2]
 
 
 
-# Plot
+## Plot RRs
 p_c <- z_rr %>%
   mutate(rr_upr = if_else(rr_upr>3, 3, rr_upr)) %>%
   ggplot() +
@@ -831,41 +753,34 @@ p_c <- z_rr %>%
                      limits = c(0,70))
   
 
-# Weekly z_rr
+## Weekly RRs from z_rr to overlap ontop of p_c
 z_rr_wkly <- z_rr %>%
   #mutate(rr_upr = ifelse(rr_upr==3, Inf, rr_upr)) %>%
   filter(day %in% seq(14,84, by = 14)) %>%
   mutate(rr_ci = paste0(round(rr,2), " (", round(rr_lwr,2), ", ", round(rr_upr,2), ")")) %>%
   mutate(y=1)
 
-
+# Combine p_c and z_rr_wkly
 p_c <- p_c +
   geom_text(aes(x=day, y=0, label = rr_ci), check_overlap = T, size=3, data=z_rr_wkly, inherit.aes = F)
 
 p_c
+
+# If PB then make copy so it can be plotted with AZ
 if(z_vacc_type == "PB"){
   p_c1 = p_c
 }
 
-
+# Plot individual plot
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/plots/gam_RR_",z_vacc_type,".png"),
     width = 800, height=400)
 
-#gridExtra::grid.arrange(p_c, gam_rrs, ncol=1, heights = c(3,0.5))
 p_c
 dev.off() 
 
 
-}
 
-
-
-model_outputs_vacc("PB")
-model_outputs_vacc("AZ")
-
-
-
-## Plot GAMS together
+## Plot GAMS together (p_c = AZ and p_c1 = PB)
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/plots/gam_RR_both.png"),
     width = 800, height=600)
 
@@ -876,6 +791,7 @@ dev.off()
 
 
 ##### GAM - Age and Sex ######
+
 
 df_cc_ps_matches <- df_cc_ps_matches %>%
   mutate(age_grp2 = ifelse(age_grp == "18-64", "18-64", "65+")) %>%
