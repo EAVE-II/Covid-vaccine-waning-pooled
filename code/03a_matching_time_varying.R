@@ -337,7 +337,7 @@ df_matches <- z_merge_month %>%
   reduce(full_join)
 
 
-##### Checks ####
+##### 3 - Checks ####
 # Unique?
 nrow(df_matches) == length(unique(df_matches$EAVE_LINKNO_vacc))
 
@@ -352,7 +352,7 @@ df_matches %>%
 nrow(df_matches)/length(which(z_chrt$vacc==1))
 
 
-#### Output ####
+#### 4 - Output ####
 
 saveRDS(df_matches, paste0("./output/df_matches_", z_event_endpoint,".rds"))
 
