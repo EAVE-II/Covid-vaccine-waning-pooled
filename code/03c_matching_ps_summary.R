@@ -1,7 +1,7 @@
 ##########################################################
 ## Title: 1st dose COVID-19 vaccine waning
 ## Code author(s): Rachel Mulholland <rachel.mulholland@ed.ac.uk> 
-##                 Chris Robertson <chrisobertson@nhs.net>
+##                 Chris Robertson <chrisrobertson@nhs.net>
 ## Description: 03c_matching_ps_summary - Calculates summary stats
 ##              and plots for the matched cc cohort
 ##########################################################

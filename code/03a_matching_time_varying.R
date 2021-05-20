@@ -1,7 +1,7 @@
 ##########################################################
 ## Title: 1st dose COVID-19 vaccine waning
 ## Code author(s): Rachel Mulholland <rachel.mulholland@ed.ac.uk> 
-##                 Chris Robertson <chrisobertson@nhs.net>
+##                 Chris Robertson <chrisrobertson@nhs.net>
 ## Description: 03a_matching_time_varying - Performs time-varying
 ##              propensity score matching
 ##########################################################
