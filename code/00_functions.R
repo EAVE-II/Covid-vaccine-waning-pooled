@@ -94,3 +94,141 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
   summary_tbl_wt
 }
 
+
+
+
+##### Covariate balance #####
+# Calculates the standardised mean differences (smd) between the uv and vacc for each of 
+# the categorical explanatory variables for a vaccine type.
+
+# Input:
+# - data = the dataset - either the matched cohort (df_cc_desc) or entire cohort (z_chrt_desc)
+# - explanatory = a string of characters of the explanatory variables with labels as their names
+# - z_vacc_type = vaccine type (PB or AZ)
+
+# Output:
+# A table with each explanatory variable and their categories as a row with
+# the weighted means and weighted variances. Differences between the two vaccination groups
+# (vacc and uv) of the means and the pooled sds, to create the standardised mean differences.
+
+# Table output to be used to plot comparisons between the matched and overall population 
+# (before matching - crude)
+
+
+cov_bal_vacc_fn <- function(data, explanatory, z_vacc_type){
+  
+  covariate_balance <- list()
+  
+  ## Find whether it is the matched or original dataset
+  data_tbl <- table(data$vacc, data$vacc_type)
+  
+  # If summaries for uv by vacc type = 0 then this refers to the original dataset
+  if(data_tbl[1,1]==0 &data_tbl[1,2]==0){
+    
+    # Replace the vacc_type for the uv as the z_vacc_type
+    data <- data %>%
+      filter(vacc_type == z_vacc_type | vacc == "uv") %>%
+      mutate(vacc_type = z_vacc_type)
+    
+    
+  } else {
+    data <- data %>%
+      filter(vacc_type == z_vacc_type)
+  }
+  
+  
+  # For each explanatory variable, get the standardised mean differences
+  for(i in 1:length(explanatory)){
+    
+    # Identify whether binary or not
+    n <- data %>%
+      pull(!!sym(explanatory[i]))
+    
+    # If binary then choose a reference level and use this to compare between the other group
+    if(length(unique(n)) == 2){
+      
+      level1 <- max(n)
+      
+      
+      covariate_balance[[i]] <- data %>%
+        mutate(var = ifelse(!!sym(as.character(explanatory)[i]) == level1, 1, 0)) %>%
+        group_by(vacc) %>%
+        summarise(weighted.mean = weighted.mean(var, w= eave_weight, na.rm = T),
+                  var = spatstat.geom::weighted.var(var, w = eave_weight)) %>%
+        mutate(mean.diff = weighted.mean[vacc=="uv"] -  weighted.mean[vacc=="vacc"],
+               sd.pooled = sqrt((var[vacc=="uv"] + var[vacc=="vacc"])/2),
+               smd = mean.diff/sd.pooled) %>%
+        #select(smd) %>%
+        mutate(characteristic = names(explanatory[i])) %>%
+        mutate(levels = level1) %>%
+        distinct()
+      
+      
+    } else
+      # If more than one group, take each level at a time and use as binary variable
+      if(length(unique(n)) > 2){
+        
+        n_levels <- unique(n)
+        
+        
+        covariate_balance_multi <- list()
+        
+        for(j in 1:length(n_levels)){
+          level1 <- n_levels[j]
+          
+          if(!is.na(level1)) {
+            covariate_balance_multi[[j]] <- data %>%
+              mutate(var = ifelse(!!sym(explanatory[i]) == level1, 1, 0)) %>%
+              group_by(vacc) %>%
+              summarise(weighted.mean = weighted.mean(var, w= eave_weight, na.rm=T),
+                        var = spatstat.geom::weighted.var(var, w = eave_weight, na.rm=T)) %>%
+              mutate(mean.diff = weighted.mean[vacc=="uv"] -  weighted.mean[vacc=="vacc"],
+                     sd.pooled = sqrt((var[vacc=="uv"] + var[vacc=="vacc"])/2),
+                     smd = mean.diff/sd.pooled) %>%
+              #select(smd) %>%
+              mutate(characteristic = names(explanatory[i])) %>%
+              mutate(levels = level1) %>%
+              distinct() 
+          } else {
+            
+            covariate_balance_multi[[j]] <- data %>%
+              mutate(var = replace_na(!!sym(explanatory[i]), 1)) %>%
+              mutate(var = ifelse(var == 1, 1, 0)) %>%
+              group_by(vacc) %>%
+              summarise(weighted.mean = weighted.mean(var, w= eave_weight, na.rm=T),
+                        var = spatstat.geom::weighted.var(var, w = eave_weight, na.rm=T)) %>%
+              mutate(mean.diff = weighted.mean[vacc=="uv"] -  weighted.mean[vacc=="vacc"],
+                     sd.pooled = sqrt((var[vacc=="uv"] + var[vacc=="vacc"])/2),
+                     smd = mean.diff/sd.pooled) %>%
+              #select(smd) %>%
+              mutate(characteristic = names(explanatory[i])) %>%
+              mutate(levels = level1) %>%
+              distinct() 
+            
+          }
+          
+          
+          
+        }
+        
+        covariate_balance [[i]] <- covariate_balance_multi %>%
+          reduce(full_join)
+        
+        
+      }
+    
+  }
+  
+  covariate_balance_all <- covariate_balance %>%
+    reduce(full_join) %>%
+    mutate(label = paste0(characteristic, ": ", levels)) %>%
+    relocate(label) %>%
+    arrange(desc(characteristic)) %>%
+    mutate(vacc_type = z_vacc_type)
+  
+  covariate_balance_all
+  
+  
+}
+
+
