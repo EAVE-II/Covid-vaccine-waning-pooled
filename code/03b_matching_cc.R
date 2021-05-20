@@ -18,18 +18,17 @@ z_event_endpoint <- "death_hosp"
 
 ### Load in data based on endpoint
 if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
-z_merge <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_matches_death_hosp.rds")
+z_merge <- readRDS("./output/df_matches_death_hosp.rds")
 }
 if (z_event_endpoint =="death_hosp") {z_event <- covid_hosp_death
-z_merge <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_matches_death_hosp.rds")
+z_merge <- readRDS("./output/df_matches_death_hosp.rds")
 }
 if (z_event_endpoint =="positive_test") {z_event <- positive_test
-#z_merge <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_matches_positive_test.rds")
-z_merge <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_matches_death_hosp.rds")
+z_merge <- readRDS("./output/df_matches_death_hosp.rds")
 
 }
 if (z_event_endpoint =="death_covid") {z_event <- covid_death
-z_merge <- readRDS("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_matches_death_hosp.rds")
+z_merge <- readRDS("./output/df_matches_death_hosp.rds")
 }
 
 
@@ -303,7 +302,7 @@ df_cc <- df_cc %>%
 
 
 ##### 8 - Save as rds ####
-saveRDS(df_cc, paste0("/conf/EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning/output/df_cc_",
+saveRDS(df_cc, paste0("./output/df_cc_",
                       z_event_endpoint, ".rds"))
 
 rm(z_cc, z_cc_uv, z_cc_vacc, df_cc, z_merge)
