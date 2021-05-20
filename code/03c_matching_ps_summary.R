@@ -10,6 +10,8 @@
 
 # Libraries
 library("finalfit")
+library("survival")
+library("survminer")
 
 # Colours 
 eave_green <- rgb(54, 176, 136, maxColorValue = 255)
@@ -62,47 +64,61 @@ z_title <- "COVID-19 deaths"
 #### 1 - Characteristics of cc cohort ####
 # Adding in characteristic information to cc data
 
+# QCOVID diagnoses 
 qcovid_diags <- colnames(df_cohort)[startsWith(colnames(df_cohort), "Q")]
 
+# Link characteristic info to df_cc_ps_matches
 df_cc_desc <- df_cc_ps_matches %>%
   select(-eave_weight) %>%
+  # Baseline characteristics for everyone
   left_join(select(df_cohort, EAVE_LINKNO, Sex, test_before_dec8, EAVE_BP, EAVE_Smoke, HB, eave_weight,
                    qcovid_diags, bmi_cat),
             by=c("EAVE_LINKNO" = "EAVE_LINKNO")) %>% 
+  # Baseline characteristics for vacc only
   left_join(select(df_cohort, EAVE_LINKNO, ageYear),
             by=c("EAVE_LINKNO_vacc" = "EAVE_LINKNO"), 
             suffix = c("", "_vacc")) %>% 
+  # Event data for everyone
   left_join(covid_hosp_death %>%
               mutate(hosp_death = if_else(!is.na(NRS.Date.Death) & !is.na(hosp_admission_date), "both", outcome_date)) %>%
               select(EAVE_LINKNO, hosp_death), 
             by=c("EAVE_LINKNO" = "EAVE_LINKNO")) %>%
-  mutate(hosp_death = replace_na(hosp_death, "no event")) %>%
+  # Household information
   left_join(select(Cohort_Household, EAVE_LINKNO,
                    n_hh_gp, ave_hh_age, care_home_elderly),
             by= c("EAVE_LINKNO"= "EAVE_LINKNO")) %>%
+  # UR
   mutate(ur6_2016_name = replace_na(ur6_2016_name, "Unknown"))
 
 
 
-#### Summary table - counts #####
-explanatory <- c("event","event_hosp","event_death","Sex", "ageYear", "age_grp", "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
-                 "n_tests_gp", "EAVE_Smoke", "bmi_cat", "ave_hh_age", "n_hh_gp")
+#### 2 - Summary table (counts) #####
+# Use counts in matched cohort to demonstrate 1:1 matching ratio
+# Explanatory variables
+explanatory <- c("event","event_hosp","event_death","Sex", "ageYear", "age_grp", 
+                 "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
+                 "n_tests_gp", "EAVE_Smoke", "bmi_cat", "ave_hh_age", "n_hh_gp",
+                 qcovid_diags)
 
 # Vaccination status
 dependent <- "vacc"
 tbl4_tot <- df_cc_desc %>%
   summary_factorlist(dependent, explanatory, p = F)
 
-head(tbl4_tot)
+
+write.csv(tbl4_tot, "./output/final/matching_summary/tbl4_tot.csv")
 
 
-# Vaccination type
+## Vaccination type
 # AZ
 tbl4_az <- df_cc_desc %>%
   filter(vacc_type == "AZ") %>%
   summary_factorlist(dependent, explanatory, p = F) %>%
   rename(uv_az = uv, vacc_az = vacc) 
 head(tbl4_az)
+
+write.csv(tbl4_az, "./output/final/matching_summary/tbl4_az.csv")
+
 
 # PB
 tbl4_pb <- df_cc_desc %>%
@@ -111,20 +127,14 @@ tbl4_pb <- df_cc_desc %>%
   rename(uv_pb = uv, vacc_pb = vacc)
 head(tbl4_pb)
 
-# Merge
-tbl4 <- tbl4_tot %>%
-  left_join(left_join(tbl4_az, tbl4_pb))
-
-
-
-write.csv(tbl4_tot, "./output/final/matching_summary/tbl4_tot.csv")
-write.csv(tbl4_az, "./output/final/matching_summary/tbl4_az.csv")
 write.csv(tbl4_pb, "./output/final/matching_summary/tbl4_pb.csv")
+
 
 ## Total
 df_cc_desc %>%
   group_by(vacc) %>%
   summarise(N = n())
+
 
 ## Medians
 # Age year
@@ -151,9 +161,45 @@ df_cc_desc %>%
 
 
 
-#### Rates using person years ####
+#### 3 - Rates of events using person years ####
+## Total population
 # Overall
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc ,
+z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc,
+                data=df_cc_ps_matches , scale=1, data.frame=TRUE)
+
+df_res <- z.agg$data
+df_res <- df_res %>% 
+  mutate(pyears =round(pyears/365.25,1)) %>%
+  mutate(Rate = round(event/pyears*1000,1)) %>% 
+  #mutate(RR = Rate/first(Rate)) %>%
+  select(-n) %>%
+  mutate(label = paste0(event, " (", Rate,")"))
+df_res
+
+# Check
+df_cc_desc %>%
+  group_by(vacc) %>%
+  summarise(event = sum(event))
+
+
+
+## For 14 days only
+z.agg <- pyears(Surv(time_to_event14,event) ~ vacc,
+                data=df_cc_ps_matches , scale=1, data.frame=TRUE)
+
+df_res <- z.agg$data
+df_res <- df_res %>% 
+  mutate(pyears =round(pyears/365.25,1)) %>%
+  mutate(Rate = round(event/pyears*1000,1)) %>% 
+  #mutate(RR = Rate/first(Rate)) %>%
+  select(-n) %>%
+  mutate(label = paste0(event, " (", Rate,")"))
+df_res
+
+
+## Vaccine type
+# Overall
+z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 df_res <- z.agg$data
@@ -173,7 +219,7 @@ df_cc_desc %>%
 
 
 # For 14 days only
-z.agg <- pyears(Surv(time_to_event14,event) ~ vacc,
+z.agg <- pyears(Surv(time_to_event14,event) ~ vacc + vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 df_res <- z.agg$data
@@ -185,34 +231,6 @@ df_res <- df_res %>%
   mutate(label = paste0(event, " (", Rate,")"))
 df_res
 
-
-
-#### Summary table - weights  #####
-explanatory <- c("Sex", "ageYear", "age_grp", "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
-                 "n_tests_gp", "test_before_dec8", "ave_hh_age", "n_hh_gp")
-
-# Sum of weights for vacc and uv
-sum(df_cc_desc$eave_weight[df_cc_desc$vacc == "vacc"])
-length(which(df_cc_desc$vacc == "vacc"))/nrow(z_df)
-
-sum(df_cc_desc$eave_weight[df_cc_desc$vacc == "uv"])
-
-sum(df_cc_desc$eave_weight[df_cc_desc$vacc_type == "AZ"])
-sum(df_cc_desc$eave_weight[df_cc_desc$vacc_type == "PB"])
-
-sum(df_cc_desc$eave_weight)
-
-sum(df_cc_desc$eave_weight[df_cc_desc$vacc == "vacc" & df_cc_desc$event_hosp==1])
-sum(df_cc_desc$eave_weight[df_cc_desc$vacc == "uv" & df_cc_desc$event_hosp==1])
-
-sum(df_cc_desc$eave_weight[df_cc_desc$vacc == "vacc" & df_cc_desc$event_death==1])
-sum(df_cc_desc$eave_weight[df_cc_desc$vacc == "uv" & df_cc_desc$event_death==1])
-
-sum(df_cc_desc$eave_weight[df_cc_desc$event_hosp==1 & df_cc_desc$vacc_type == "PB"])
-sum(df_cc_desc$eave_weight[df_cc_desc$event_hosp==1 & df_cc_desc$vacc_type == "AZ"])
-
-sum(df_cc_desc$eave_weight[df_cc_desc$event_death==1 & df_cc_desc$vacc_type == "PB"])
-sum(df_cc_desc$eave_weight[df_cc_desc$event_death==1 & df_cc_desc$vacc_type == "AZ"])
 
 
 # Individual characteristics
