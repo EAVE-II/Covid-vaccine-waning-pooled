@@ -56,28 +56,15 @@ z_title <- "COVID-19 deaths"
 }
 
 
-#### 1 - Sample sizes ####
-## Matches out out total eligible vaccinated ###
-nrow(df_matches)/nrow(z_chrt)
-
-# No. matches which were vaccinated
-df_matches %>%
-  filter(!is.na(date_vacc_1_vacc)) %>%
-  nrow()
-
-
-# No. not matched
-nrow(df_matches)-nrow(z_df)
-1-nrow(df_matches)/nrow(z_df)
-(nrow(df_matches)-nrow(z_df))/nrow(z_df)*100
 
 
 
-#### Adding in characteristic information to cc data #####
+#### 1 - Characteristics of cc cohort ####
+# Adding in characteristic information to cc data
+
 qcovid_diags <- colnames(df_cohort)[startsWith(colnames(df_cohort), "Q")]
 
 df_cc_desc <- df_cc_ps_matches %>%
-  #left_join(any_hosp_nov_distinct, by=c("EAVE_LINKNO" = "EAVE_LINKNO")) %>%
   select(-eave_weight) %>%
   left_join(select(df_cohort, EAVE_LINKNO, Sex, test_before_dec8, EAVE_BP, EAVE_Smoke, HB, eave_weight,
                    qcovid_diags, bmi_cat),
