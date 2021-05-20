@@ -1,10 +1,65 @@
-##### Matching modelling #####
-# Carrying out cumulative incidence plots, poisson regression and cox regression
+##########################################################
+## Title: 1st dose COVID-19 vaccine waning
+## Code author(s): Rachel Mulholland <rachel.mulholland@ed.ac.uk> 
+##                 Chris Robertson <chrisrobertson@nhs.net>
+## Description: 03d_matching_modelling - Carries out statistical
+##              modelling (e.g. cumulative risks, GLMs, GAMs)
+##########################################################
 
+#### 0 - Set up ####
 
-### Cumulative incidence plots ####
+# Libraries
 library(survival)
 library(survminer)
+
+# Colours 
+eave_green <- rgb(54, 176, 136, maxColorValue = 255)
+eave_blue <- rgb(71,93,167, maxColorValue = 255)
+eave_blue2 <- rgb(0,192,209, maxColorValue = 255)
+eave_gold <- rgb(255,192,0, maxColorValue = 255)
+eave_orange <- rgb(244,143,32, maxColorValue = 255)
+
+# Event
+z_event_endpoint <- "death_hosp"
+#z_event_endpoint <- "positive_test"
+#z_event_endpoint <- "hosp_covid"
+#z_event_endpoint <- "death_covid"
+
+### Load in data based on endpoint
+if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
+df_matches <- readRDS("./output/df_matches_death_hosp.rds")
+
+df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds") %>%
+  select(-c(event, time_to_hosp, time_to_event14, period)) %>%
+  rename(event = event_hosp, time_to_hosp = time_to_hosp_hosp, time_to_event14 =time_to_event14_hosp,
+         period = period_hosp)
+
+z_title <- "COVID-19 hospitalisations"}
+
+if (z_event_endpoint =="death_hosp") {z_event <- covid_hosp_death
+df_matches <- readRDS("./output/df_matches_death_hosp.rds")
+df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds")
+z_title <- "COVID-19 hospitalisations or deaths"
+}
+
+if (z_event_endpoint =="positive_test") {z_event <- positive_test
+df_cc_ps_matches <- readRDS("./output/df_cc_positive_test.rds")
+z_title <- "COVID-19 positive infections"
+}
+
+if (z_event_endpoint =="death_covid") {z_event <- covid_death
+df_matches <- readRDS("./output/df_matches_death_hosp.rds")
+df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds")%>%
+  select(-c(event, time_to_hosp, time_to_event14, period)) %>%
+  rename(event = event_death, time_to_hosp = time_to_hosp_death, time_to_event14 =time_to_event14_death,
+         period = period_death)
+z_title <- "COVID-19 deaths"
+}
+
+
+
+
+##### 1 - Cumulative risk incidence #####
 
 
 #### Overall
@@ -27,7 +82,9 @@ legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.
 
 dev.off()
 
+
 #### By age group
+
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/cumulative_risks/cumulative_age.png"),
     width = 900, height=900)
 
@@ -241,96 +298,10 @@ dev.off()
 
 
 
-### In hospital####
-df_cc_ps_matches <- df_cc_ps_matches %>%
-  left_join(select(any_hosp_nov_distinct, 
-                   EAVE_LINKNO, inhosp_vacc1), by = c("EAVE_LINKNO_vacc" = "EAVE_LINKNO"),
-            suffix=c("", "_vacc")) %>%
-  mutate(inhosp_vacc1 = replace_na(inhosp_vacc1, 0))
 
 
-## In hospital at time of vaccination
-par(mfrow=c(2,2))
+##### 2 - Weekly GLM - Overall ####
 
-## In hosp
-z_hosp <- survfit(Surv(time_to_hosp, event) ~ vacc, data=df_cc_ps_matches, 
-                  subset = inhosp_vacc1 == 1)
-plot(z_hosp, fun="event", col=c(1,2), conf.int=T)
-title(main=z_title, xlab="days from vaccination",ylab="cumulative risk",
-      sub = "In hospital at time of vaccination")
-legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
-
-# From 14 days
-z_hosp <- survfit(Surv(time_to_event14, event) ~ vacc, data=df_cc_ps_matches, 
-                  subset = inhosp_vacc1 == 1)
-plot(z_hosp, fun="event", col=c(1,2), conf.int=T)
-title(main=z_title, 
-      xlab="14 days from vaccination",ylab="cumulative risk",
-      sub = "In hospital at time of vaccination")
-legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
-
-## Not in hosp
-z_hosp <- survfit(Surv(time_to_hosp, event) ~ vacc, data=df_cc_ps_matches, 
-                  subset = inhosp_vacc1 == 0)
-plot(z_hosp, fun="event", col=c(1,2), conf.int=T)
-title(main=z_title, xlab="days from vaccination",ylab="cumulative risk",
-      sub = "Not in hospital at vaccination")
-legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
-
-# From 14 days
-z_hosp <- survfit(Surv(time_to_event14, event) ~ vacc, data=df_cc_ps_matches, 
-                  subset = inhosp_vacc1 == 0)
-plot(z_hosp, fun="event", col=c(1,2), conf.int=T)
-title(main=z_title, 
-      xlab="14 days from vaccination",ylab="cumulative risk",
-      sub = "Not in hospital at time of vaccination")
-legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
-
-
-
-### Hospital status by vaccine 
-
-## PB 
-z_hosp <- survfit(Surv(time_to_hosp, event) ~ vacc, data=df_cc_ps_matches, 
-                  subset = inhosp_vacc1 == 1 & vacc_type == "PB")
-plot(z_hosp, fun="event", col=c(1,2), conf.int=T)
-title(main=z_title, xlab="days from vaccination",ylab="cumulative risk",
-      sub = "PB: In hospital at time of vaccination")
-legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
-
-# From 14 days
-z_hosp <- survfit(Surv(time_to_event14, event) ~ vacc, data=df_cc_ps_matches, 
-                  subset = inhosp_vacc1 == 1 & vacc_type == "PB")
-plot(z_hosp, fun="event", col=c(1,2), conf.int=T)
-title(main=z_title, 
-      xlab="14 days from vaccination",ylab="cumulative risk",
-      sub = "PB: In hospital at time of vaccination")
-legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
-
-# Not in hosp
-z_hosp <- survfit(Surv(time_to_hosp, event) ~ vacc, data=df_cc_ps_matches, 
-                  subset = inhosp_vacc1 == 0 & vacc_type == "PB")
-plot(z_hosp, fun="event", col=c(1,2), conf.int=T)
-title(main=z_title, xlab="days from vaccination",ylab="cumulative risk",
-      sub = "PB: Not in hospital at vaccination")
-legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
-
-# From 14 days
-z_hosp <- survfit(Surv(time_to_event14, event) ~ vacc, data=df_cc_ps_matches, 
-                  subset = inhosp_vacc1 == 0 & vacc_type == "PB")
-plot(z_hosp, fun="event", col=c(1,2), conf.int=T)
-title(main=z_title, 
-      xlab="14 days from vaccination",ylab="cumulative risk",
-      sub = "PB: Not in hospital at time of vaccination")
-legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
-
-
-
-
-
-
-
-##### GLM - Overall ####
 
 ### GLM
 ## Time to event - all
