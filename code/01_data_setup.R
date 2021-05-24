@@ -6,7 +6,6 @@
 ##              df_cohort and df_vaccinations
 ##########################################################
 
-Steven is awesome
 #### 0 - Set-up #####
 
 # Libraries
