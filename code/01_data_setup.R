@@ -22,9 +22,9 @@ a_begin <- as.Date("2020-12-08")
 
 ##### 1 - Baseline characteristic data (df_cohort)  ####
 
-## EAVE Cohort - Endpoints as of 20th April 2021
+## EAVE Cohort - Endpoints as of May 18th 2021
 # Load in End points dataset
-EAVE_cohort <- readRDS(paste0(Location,"EAVE/GPanalysis/outputs/temp/Cohort_Demog_Endpoints_Times2021-04-20.rds")) %>%
+EAVE_cohort <- readRDS(paste0(Location,"EAVE/GPanalysis/outputs/temp/Cohort_Demog_Endpoints_Times2021-05-18.rds")) %>%
   dplyr::filter(!duplicated(EAVE_LINKNO))%>%
   #remove all who have died before the beginning
   dplyr::filter(is.na(NRS.Date.Death) | (!is.na(NRS.Date.Death) & 
@@ -64,7 +64,7 @@ qcovid_rg <- readRDS("/conf/EAVE/GPanalysis/progs/CR/Vaccine/output/temp/Qcovid.
                        labels=c("Underweight","Normal weight","Overweight","Obese")))
 
 ## Number of previous tests
-prev_tests  <- readRDS(paste0(Location,"EAVE/GPanalysis/data/Tests.rds")) %>% 
+prev_tests  <- readRDS(paste0(Location,"EAVE/GPanalysis/data/Tests.RDS")) %>% 
   dplyr::select(EAVE_LINKNO, n_tests)
 
 # Remove duplicates - take the row with the highest number of tests
@@ -76,7 +76,7 @@ prev_tests <- prev_tests %>%
 
 
 ## Previous positive tests
-pos_tests <- readRDS(paste0(Location,"EAVE/GPanalysis/data/Positive_Tests.rds")) %>%
+pos_tests <- readRDS(paste0(Location,"EAVE/GPanalysis/data/Positive_Tests.RDS")) %>%
   group_by(EAVE_LINKNO) %>%
   # Take minimum specimen date if multiple
   summarise(specimen_date = min(specimen_date)) %>%
