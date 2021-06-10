@@ -301,8 +301,8 @@ ggplot(z_chrt_desc) +
   theme_light() +
   scale_fill_manual(values = c(eave_blue, eave_green)) +
   scale_color_manual(values = c(eave_blue, eave_green)) +
-  labs(x="Date of 1st vaccine (2020/21)", fill="Vaccine type",
-       subtitle = paste0("All 1st dose vaccine dates"),
+  labs(x="Date of 2nd vaccine (2020/21)", fill="Vaccine type",
+       subtitle = paste0("All 2nd dose vaccine dates"),
        caption = paste0(a_begin, " to ", a_end)) +
   xlim(a_begin, a_end)
 
