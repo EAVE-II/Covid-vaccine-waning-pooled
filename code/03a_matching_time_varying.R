@@ -47,6 +47,9 @@ colnames(z_event)
 # Find end date according to admission date
 a_end <- as.Date("2021-04-30")
 
+# Filter event data to end date
+z_event <- z_event %>%
+  filter(admission_date <= a_end)
 
 ## NOTE: admission_date is generic - means hospital admission date and/or death date
 

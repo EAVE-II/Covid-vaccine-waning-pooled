@@ -57,7 +57,12 @@ df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds")%>%
 z_title <- "COVID-19 deaths"
 }
 
+# Find end date according to admission date
+a_end <- as.Date("2021-04-30")
 
+# Filter event data to end date
+z_event <- z_event %>%
+  filter(admission_date <= a_end)
 
 
 

@@ -49,6 +49,10 @@ if (z_event_endpoint =="positive_test") {z_event <- positive_test}
 # Find end date according to admission date
 a_end <- as.Date("2021-04-30")
 
+# Filter event data to end date
+z_event <- z_event %>%
+  filter(admission_date <= a_end)
+
 
 ##### 1 - Data set-up ####
 # Link in vaccination and event data into baseline characteristics (df_cohort)
