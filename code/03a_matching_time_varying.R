@@ -129,9 +129,8 @@ length(which(z_chrt$vacc==1))
 ### Set up - Monthly time period
 # Create loop for month
 a_months <- seq(a_begin,a_end,by='months')
-a_months[length(a_months)] <- a_end # Replace end date with end date (as sequence may miss this)
+a_months[length(a_months)+1] <- a_end # Replace end date with end date (as sequence may miss this)
 a_months[2] <- as.Date("2021-01-03") # Replace 2nd months start date with the 1st day of AZ
-a_months[1] <- a_months[1]-1 # Subtract 1 day from start so it includes this day
 
 # Create list to assign monthly datasets to
 z_merge_month <- list()
