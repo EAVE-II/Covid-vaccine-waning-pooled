@@ -16,7 +16,7 @@ if (z_event_endpoint =="death_hosp") z_event <- covid_hosp_death %>%
   select(EAVE_LINKNO, SpecimenDate, admission_date)
 
 # Extract end date
-a_end <- max(z_event$admission_date)
+a_end <- as.Date("2021-04-30")
 # Event
 output_list$endpoint <- z_event_endpoint
 # Number of events

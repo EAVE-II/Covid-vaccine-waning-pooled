@@ -47,8 +47,7 @@ z_title <- "COVID-19 hospitalisations and deaths"}
 if (z_event_endpoint =="positive_test") {z_event <- positive_test}
 
 # Find end date according to admission date
-a_end <- max(z_event$admission_date)
-
+a_end <- as.Date("2021-04-30")
 
 
 ##### 1 - Data set-up ####

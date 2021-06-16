@@ -16,9 +16,11 @@ library(lubridate)
 # Server location
 Location <- "/conf/"  # Server
 
-# Cohort start date - 8th Dec (when vaccines first rolled out in Scotland)
+# Cohort start date - 8th Dec 2020 (when vaccines first rolled out in Scotland)
 a_begin <- as.Date("2020-12-08")
 
+# Cohort end date - 30th April 2021 (to keep consistent across the UK nations)
+a_end <- as.Date("2021-04-30")
 
 ##### 1 - Baseline characteristic data (df_cohort)  ####
 

@@ -45,7 +45,7 @@ z_title <- "COVID-19 positive test"}
 colnames(z_event)
 
 # Find end date according to admission date
-a_end <- max(covid_hosp_death$admission_date)
+a_end <- as.Date("2021-04-30")
 
 
 ## NOTE: admission_date is generic - means hospital admission date and/or death date
