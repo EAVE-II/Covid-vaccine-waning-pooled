@@ -172,7 +172,15 @@ df_vaccinations <- left_join(Vaccinations1,Vaccinations2, by="EAVE_LINKNO") %>%
   mutate(week_start_vacc1 = floor_date(date_vacc_1, unit = "week", 
                                        week_start = 1)) %>%
   mutate(week_start_vacc2 = floor_date(date_vacc_2, unit = "week", 
-                                       week_start = 1))
+                                       week_start = 1)) %>%
+  # Fix any 2nd dose vaccinations that occurred on the same day as first
+  mutate(vacc_type_2 = if_else(!is.na(date_vacc_2) & (date_vacc_2 == date_vacc_1), NA_character_, vacc_type_2 ) ) %>% 
+  mutate(date_vacc_2 = as.Date(ifelse(!is.na(date_vacc_2) & (date_vacc_2 == date_vacc_1), NA, date_vacc_2 ), origin=as.Date("1970-01-01")) ) %>%
+  # Omit records with 2nd dose too close to 1st
+  filter(is.na(date_vacc_2) | !is.na(date_vacc_2)&(date_vacc_2 > date_vacc_1 + 18)) %>%
+  # Omit 1st dose records before 8th December 2020
+  filter(date_vacc_1 >= "2020-12-08")
+
 
 
 
@@ -254,7 +262,7 @@ df_cohort <- df_cohort %>%
 
 ##### 4 - Hospitalisation data ####
 # All hospitalisations
-all_hospitalisations  <- readRDS(paste0(Location,"EAVE/GPanalysis/data/any_hospitalisation_post_01022020 (2).RDS")) %>%
+all_hospitalisations  <- readRDS(paste0(Location,"EAVE/GPanalysis/data/any_hospitalisation_post_01022020.rds")) %>%
   left_join(covid_hospitalisations, by="EAVE_LINKNO", suffix=c("","_covid")) %>% 
   filter(is.na(admission_date_covid) | !is.na(admission_date_covid)&(admission_date_covid > admission_date + 14) ) %>% 
   dplyr::select(-SpecimenDate, - admission_date_covid)
