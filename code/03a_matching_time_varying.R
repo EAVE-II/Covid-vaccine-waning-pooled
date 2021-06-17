@@ -60,8 +60,8 @@ z_event <- z_event %>%
 # Make anyone vaccinated after the maximum endpoint time unvaccinated
 z_vaccinations <- filter(df_vaccinations, 
                          date_vacc_1 <= a_end) %>% 
-  mutate(vacc_type_2 = if_else(date_vacc_2 >= a_end, NA_character_ , vacc_type_2),
-         date_vacc_2 = as.Date(ifelse(date_vacc_2 >= a_end, NA, date_vacc_2), origin=as.Date("1970-01-01")) )
+  mutate(vacc_type_2 = if_else(date_vacc_2 > a_end, NA_character_ , vacc_type_2),
+         date_vacc_2 = as.Date(ifelse(date_vacc_2 > a_end, NA, date_vacc_2), origin=as.Date("1970-01-01")) )
 
 
 ## Whole cohort
@@ -357,6 +357,6 @@ nrow(df_matches)/length(which(z_chrt$vacc==1))
 #### 4 - Output ####
 
 saveRDS(df_matches, paste0("./output/df_matches_", z_event_endpoint,".rds"))
-saveRDS(df_matches, paste0("./output/df_matches_", z_event_endpoint,"_",a_end,".rds"))
+#saveRDS(df_matches, paste0("./output/df_matches_", z_event_endpoint,"_",a_end,".rds"))
 
 rm(z_merge_ps_list, z_merge_ps_i, z_merge_ps_data, z_merge_month, z_df, z_df_i, z_1, m_j, loop_breaks5, data)

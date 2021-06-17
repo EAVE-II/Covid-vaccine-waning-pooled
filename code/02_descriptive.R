@@ -61,8 +61,8 @@ z_event <- z_event %>%
 ## Vaccine data
 # Subset vaccine data from 8th Dec until end date
 z_vaccinations <- filter(df_vaccinations, date_vacc_1 <= a_end) %>% 
-  mutate(vacc_type_2 = if_else(date_vacc_2 >= a_end, NA_character_ , vacc_type_2),
-         date_vacc_2 = as.Date(ifelse(date_vacc_2 >= a_end, NA, date_vacc_2), origin=as.Date("1970-01-01")) )
+  mutate(vacc_type_2 = if_else(date_vacc_2 > a_end, NA_character_ , vacc_type_2),
+         date_vacc_2 = as.Date(ifelse(date_vacc_2 > a_end, NA, date_vacc_2), origin=as.Date("1970-01-01")) )
 
 
 ## Baseline data
@@ -370,6 +370,34 @@ dev.off()
 
 #### 5 - Descriptive plots of non-elderly care home population #####
 # Same descriptives as 4 but for non-elderly care home residents
+z_chrt_desc <- z_chrt_desc %>%
+  filter(care_home_elderly==0)
+
+# Number of participants
+n_tot <- sum(z_chrt_desc$eave_weight)
+n_tot
+
+# No. vacc
+n <- sum(z_chrt_desc$eave_weight[z_chrt_desc$vacc1==1])
+n
+n/n_tot
+
+
+## Split by vaccine type
+n1 <- sum(z_chrt_desc$eave_weight[which(z_chrt_desc$vacc_type=="PB")])
+n2 <- sum(z_chrt_desc$eave_weight[which(z_chrt_desc$vacc_type=="AZ")])
+n1
+n2
+n1+n2 == n
+
+n1/n
+
+n2/n
+
+## Vacc uptake
+# Labels for vacc type
+vacc_type_label <- c("BNT162b2", "ChAdOx1")
+names(vacc_type_label) <- c("PB", "AZ")
 
 png(file=paste0("./output/final/descriptives/vacc_uptake_nonch.png"),
     width = 800, height=400)

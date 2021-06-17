@@ -35,8 +35,8 @@ z_merge <- readRDS("./output/df_matches_death_hosp.rds")
 ## Vaccination data
 # Make anyone vaccinated after the maximum endpoint time unvaccinated
 z_vaccinations <- filter(df_vaccinations, date_vacc_1 <= a_end) %>% 
-  mutate(vacc_type_2 = if_else(date_vacc_2 >= a_end, NA_character_ , vacc_type_2),
-         date_vacc_2 = as.Date(ifelse(date_vacc_2 >= a_end, NA, date_vacc_2), origin=as.Date("1970-01-01")) )
+  mutate(vacc_type_2 = if_else(date_vacc_2 > a_end, NA_character_ , vacc_type_2),
+         date_vacc_2 = as.Date(ifelse(date_vacc_2 > a_end, NA, date_vacc_2), origin=as.Date("1970-01-01")) )
 
 
 ##### 1 - Separate cases and controls ####
