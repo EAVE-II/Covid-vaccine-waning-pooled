@@ -74,7 +74,7 @@ qcovid_diags <- colnames(df_cohort)[startsWith(colnames(df_cohort), "Q")]
 
 # Link characteristic info to df_cc_ps_matches
 df_cc_desc <- df_cc_ps_matches %>%
-  select(-eave_weight) %>%
+  #select(-eave_weight) %>%
   # Baseline characteristics for everyone
   left_join(select(df_cohort, EAVE_LINKNO, Sex, test_before_dec8, EAVE_BP, EAVE_Smoke, HB, eave_weight,
                    qcovid_diags, bmi_cat),
@@ -93,12 +93,18 @@ df_cc_desc <- df_cc_ps_matches %>%
                    n_hh_gp, ave_hh_age, care_home_elderly),
             by= c("EAVE_LINKNO"= "EAVE_LINKNO")) %>%
   # UR
-  mutate(ur6_2016_name = replace_na(ur6_2016_name, "Unknown"))
+  mutate(ur6_2016_name = replace_na(ur6_2016_name, "Unknown")) %>%
+  # Add total column to get overall numbers
+  mutate(Total = "total")
 
 
 
 #### 2 - Summary table (counts) #####
 # Use counts in matched cohort to demonstrate 1:1 matching ratio
+# Totals
+table(df_cc_desc$Total, df_cc_desc$vacc)
+table(df_cc_desc$Total, df_cc_desc$vacc, df_cc_desc$vacc_type) # By vacc type
+
 # Explanatory variables
 explanatory <- c("event","event_hosp","event_death","Sex", "ageYear", "age_grp", 
                  "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
