@@ -36,7 +36,7 @@ df_cc_ps_matches_check <- df_cc_ps_matches_check %>%
 
 
 #### Checking censoring worked ####
-
+## Composite outcome
 # How many people have their event date before the event?
 z <- which(df_cc_ps_matches$event_date < df_cc_ps_matches$admission_date)
 length(z)
@@ -46,7 +46,21 @@ sum(df_cc_ps_matches$event[z])
 head(df_cc_ps_matches %>%
        filter(EAVE_LINKNO_vacc %in% df_cc_ps_matches$EAVE_LINKNO[z]))
 
+## Hospitalisations
+# How many people have their event date before the event?
+z <- which(df_cc_ps_matches$event_date_hosp < df_cc_ps_matches$hosp_admission_date)
+length(z)
+
+sum(df_cc_ps_matches$event_hosp[z])
 
 
+## Deaths
+# How many people have their event date before the event?
+z <- which(df_cc_ps_matches$event_date_death < df_cc_ps_matches$NRS.Date.Death)
+length(z)
 
+sum(df_cc_ps_matches$event_death[z])
 
+#### Events ####
+df_cc_ps_matches_events <- df_cc_ps_matches %>%
+  filter(event == 1)
