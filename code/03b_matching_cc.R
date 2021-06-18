@@ -72,17 +72,19 @@ nrow(z_cc) == nrow(z_cc_vacc) + nrow(z_cc_uv)
 
 
 #### 3 - Eliminate matches with events that are ineligible ####
+# For data flow diagram (run first to get numbers of pairs where at least one had a covid hosp/death on the same day or before vacc exposed)
+z_cc2 <- z_cc %>%
+  filter(admission_date_vacc <= date_vacc_1_vacc | admission_date_uv <= date_vacc_1_vacc) %>%
+  select(-admission_date_vacc, -admission_date_uv) %>%
+  left_join(select(df_cohort, EAVE_LINKNO, eave_weight))
+
+
 ## Eliminate those with event on the same day or before vaccination date for both pairs (NEW)
 z_cc <- z_cc %>%
   filter(admission_date_vacc > date_vacc_1_vacc | is.na(admission_date_vacc)) %>%
   filter(admission_date_uv > date_vacc_1_vacc | is.na(admission_date_uv)) %>%
   select(-admission_date_vacc, -admission_date_uv)
 
-# For data flow diagram
-z_cc2 <- z_cc %>%
-  filter(admission_date_vacc <= date_vacc_1_vacc | admission_date_uv <= date_vacc_1_vacc) %>%
- select(-admission_date_vacc, -admission_date_uv) %>%
- left_join(select(df_cohort, EAVE_LINKNO, eave_weight))
 
 #sum(z_cc2$eave_weight)
 nrow(z_cc2)/2
