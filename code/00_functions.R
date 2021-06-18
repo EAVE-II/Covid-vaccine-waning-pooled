@@ -346,11 +346,11 @@ GAM_rr_var <- function(z_vacc_type, variable, level){
     # Subset to function 
     filter(!!sym(variable) == level)
   
+  myknots <-  seq(14,70, by =7)
   
-  z_gam_vacc <- gam(event ~ offset(log(pyears)) + vacc + s(day, by=vacc), 
-                    knots = list(day = seq(14,70, by =7)), 
+  z_gam_vacc <- gam(event ~ offset(log(pyears)) + vacc + s(day, by=vacc, k=length(myknots)), 
+                    knots = list(day = myknots), 
                     family=poisson, data=z_pois, subset= vacc_type == z_vacc_type)
-  
   
   
   # Create cut off so length of vacc and uv match

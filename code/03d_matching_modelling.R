@@ -653,8 +653,10 @@ z_pois <- z.agg$data %>%
   filter(vacc_type == z_vacc_type) 
 
 # GAM
-z_gam_vacc <- gam(event ~ offset(log(pyears)) + vacc + s(day, by=vacc), 
-                  knots = list(day = seq(14,70, by =7)), 
+myknots <-  seq(14,70, by =7)
+
+z_gam_vacc <- gam(event ~ offset(log(pyears)) + vacc + s(day, by=vacc, k=length(myknots)), 
+                  knots = list(day = myknots), 
                   family=poisson, data=z_pois, subset= vacc_type == z_vacc_type)
 
 
@@ -791,7 +793,7 @@ dev.off()
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/plots/gam_RR_both.png"),
     width = 800, height=600)
 
-cowplot::plot_grid(p_c, p_c1, labels = "AUTO", ncol=1)
+cowplot::plot_grid(p_c1,p_c, labels = "AUTO", ncol=1)
 
 dev.off() 
 
@@ -861,32 +863,36 @@ z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time
 z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
-#z.agg$data %>% mutate(long = as.numeric(z.yr) >70) %>% group_by(vacc, vacc_type, long) %>% summarise(N=sum(event))
+z.agg$data %>% mutate(long = as.numeric(z.yr) >70) %>% group_by(vacc, vacc_type, long) %>% summarise(N=sum(event))
 
 
 z_pois <- z.agg$data %>%
   mutate(day =  as.numeric(z.yr)-1) %>%
-  filter(vacc_type == z_vacc_type) %>%
-filter(day %in% 14:56)
+  filter(vacc_type == z_vacc_type)
 
 z_pois %>%
   filter(vacc == "vacc") %>%
   group_by(vacc_type) %>%
   summarise(events = sum(event))
 
-z_gam_vacc <- gam(event ~ offset(log(pyears)) + vacc + s(day, by=vacc, k = 3), 
-                 # knots = list(day = seq(14,70, by =7)), 
-                  #knots = list(day = seq(14,56, by =14)), 
-                  #knots = list(day = 14),
+myknots = seq(14,70, by =7)
+z_gam_vacc <- gam(event ~ offset(log(pyears)) + vacc + s(day, by=vacc, k = length(myknots)), 
+                  knots = list(day = myknots), 
                   family=poisson, data=z_pois, subset= vacc_type == z_vacc_type)
 
-# Compare linearity
-#z_gam_vacc2 <- gam(event ~ offset(log(pyears)) + vacc + s(day), 
-# family=poisson, data=z_pois, subset= vacc_type == z_vacc_type)
+myknots <-  seq(14,70, by =7)
 
+z_gam_vacc <- gam(event ~ offset(log(pyears)) + vacc + s(day, by=vacc, k=length(myknots)), 
+                  knots = list(day = myknots), 
+                  family=poisson, data=z_pois, subset= vacc_type == z_vacc_type)
 
-#AIC(z_gam_vacc, z_gam_vacc2)
+my_knots <- z_gam_vacc$smooth[[1]]$xp
+plot(x, y, col= "grey", main = "my knots");
+lines(x, myfit$linear.predictors, col = 2, lwd = 2)
+abline(v = my_knots, lty = 2)
 
+par(mfrow=c(1,2))
+plot(z_gam_vacc)
 
 ## Plot GAM RR
 
