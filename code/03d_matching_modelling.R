@@ -392,6 +392,7 @@ df_res
 
 # Check sum of events for vaccinated
 sum(df_res$event[which(df_res$vacc == "vacc")])
+sum(df_res$event[which(df_res$vacc == "uv")])
 
 # Extract for GLM
 z_pois <- z.agg$data
@@ -568,7 +569,7 @@ dev.off()
 
 
 
-#### 6 - GAM and Cumulative plots by Vaccine type ####
+#### 6 - GAM and Cumulative plots by Vaccine type (Final plots used in paper) ####
 # Final figures for publication by vacc type
 # Was a function but didn't work with saving files automatically
 
@@ -808,8 +809,8 @@ df_cc_ps_matches <- df_cc_ps_matches %>%
 p_title <- ggdraw() +
   draw_label(paste0("Rate ratios of ", z_title," for ChAdOx1 by age and sex"),
              size=10)
-p1 <- GAM_rr_var("AZ", "age_grp","18-64")
-p2 <- GAM_rr_var("AZ", "age_grp","65+")
+p1 <- GAM_rr_var("AZ", "age_grp2","18-64")
+p2 <- GAM_rr_var("AZ", "age_grp2","65+")
 p3 <- GAM_rr_var("AZ", "Sex","F")
 p4 <- GAM_rr_var("AZ", "Sex","M")
 
@@ -827,10 +828,10 @@ dev.off()
 p_title <- ggdraw() +
   draw_label(paste0("Rate ratios of ", z_title," for BNT162b2 by age and sex"),
              size=10)
-p1 <- gam_age_fn("PB", "age_grp","18-64")
-p2 <- gam_age_fn("PB","age_grp", "65+")
-p3 <- gam_sex_fn("PB","Sex", "F")
-p4 <- gam_sex_fn("PB","Sex", "M")
+p1 <- GAM_rr_var("PB", "age_grp2","18-64")
+p2 <- GAM_rr_var("PB","age_grp2", "65+")
+p3 <- GAM_rr_var("PB","Sex", "F")
+p4 <- GAM_rr_var("PB","Sex", "M")
 
 
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/plots/gam_RR_agesex_PB.png"),
