@@ -100,6 +100,7 @@ z_chrt_desc <- z_chrt_desc %>%
   mutate(event = replace_na(event, "0")) %>%
   # For composite outcome, 14 days after
   mutate(event14 = ifelse(admission_date <= date_vacc_1+13, "0", "1")) %>%
+  mutate(event14 = ifelse(is.na(date_vacc_1) & !is.na(admission_date), "1", event14)) %>%
   mutate(event14 = replace_na(event14, "0")) %>%
   # For hospitalisations
   mutate(event_hosp = ifelse(hosp_admission_date <= date_vacc_1,"0", "1")) %>%
@@ -207,10 +208,10 @@ n2/n
 # QCOVID risk groups
 qcovid_diags <- colnames(df_cohort)[startsWith(colnames(df_cohort), "Q")]
 # Other explanatory variables + qcovid_diag
-explanatory <- c("Total","Sex", "ageYear", "age_grp", "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
+explanatory <- c("Total","event","event14","Sex", "ageYear", "age_grp", "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
                  "n_tests_gp", "test_before_dec8", "ave_hh_age", "n_hh_gp", "care_home_elderly",
                  "bmi_cat", "EAVE_Smoke", 
-                 "event", qcovid_diags)
+                  qcovid_diags)
 
 ## Total population summary tables
 
