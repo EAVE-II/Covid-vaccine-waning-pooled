@@ -63,7 +63,7 @@ n1 <- sum(EAVE_cohort_all$eave_weight)
 
 
 
-### After eliminating children ####
+### Remove children ####
 n2 <- sum(df_cohort$eave_weight)
 
 (n1-n2)
@@ -72,8 +72,29 @@ n2 <- sum(df_cohort$eave_weight)
 (n2)/n1*100
 
 
-#### Linking in information ####
+### Remove elderly care-home residents ####
+# Add in household information
+Cohort_Household <- readRDS("/conf/EAVE/GPanalysis/outputs/temp/Cohort_Household.rds") %>%
+  mutate(n_hh_gp = cut(n_hh, breaks=c(0,1,2,5,10,30,100,max(n_hh)),
+                       labels=c("1", "2", "3-5", "6-10", "11-30", "31-100", "101+")))%>% 
+  mutate(ave_hh_age=if_else(is.na(ave_hh_age), mean(ave_hh_age, na.rm=T), ave_hh_age) )
 
+# Add in cohort household information
+df_cohort <- df_cohort %>%
+  left_join(select(Cohort_Household, EAVE_LINKNO,
+                   n_hh_gp, ave_hh_age, care_home_elderly))
+
+n2 <- sum(df_cohort$eave_weight[which(df_cohort$care_home_elderly==1)])
+n2/n1*100
+
+
+#### Eligible cohort ####
+n2 <- sum(df_cohort$eave_weight)
+sum(df_cohort$eave_weight)/sum(EAVE_cohort_all$eave_weight)
+
+
+
+#### Vaccination information ####
 
 # Add in vaccination data
 df_cohort <- df_cohort %>%
@@ -86,20 +107,7 @@ df_cohort <- df_cohort %>%
   mutate(vacc2 = if_else(vacc_type_2 %in% c("PB", "AZ"), 1,0))
 
 
-
-# Add in household information
-Cohort_Household <- readRDS("/conf/EAVE/GPanalysis/outputs/temp/Cohort_Household.rds") %>%
-  mutate(n_hh_gp = cut(n_hh, breaks=c(0,1,2,5,10,30,100,max(n_hh)),
-                       labels=c("1", "2", "3-5", "6-10", "11-30", "31-100", "101+")))%>% 
-  mutate(ave_hh_age=if_else(is.na(ave_hh_age), mean(ave_hh_age, na.rm=T), ave_hh_age) )
-
-# Add in cohort household information
-df_cohort <- df_cohort %>%
-  left_join(select(Cohort_Household, EAVE_LINKNO,
-                   n_hh_gp, ave_hh_age, care_home_elderly))
-
-
-### Vaccinated only ####
+## Vaccinated only
 n3 <- sum(df_cohort$eave_weight[which(df_cohort$vacc1==1)])
 n3/n2
 
@@ -111,12 +119,18 @@ df_cohort_nch <- df_cohort %>%
 
 n4 <- sum(df_cohort_nch$eave_weight)
 
-(n2-n4)/n2*100
-n4/n2*100
+n4/n1*100
 
-n5 <- sum(df_cohort_nch$eave_weight[which(df_cohort_nch$vacc1==1)])
+n5 <- sum(df_cohort_nch$eave_weight[which(df_cohort_nch$date_vacc_1<=as.Date("2021-04-30"))])
 n5/n4
 
+## Matched cohort
+n6 <- nrow(df_cc_ps_matches)/2
+
+# Percentages
+n6/n5
+
+n6/(n4-n5)
 
 ###### Failure cohort ####
 df_cohort_vacc <- df_cohort %>%
