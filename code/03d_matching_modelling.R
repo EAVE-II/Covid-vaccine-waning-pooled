@@ -837,7 +837,7 @@ p4 <- GAM_rr_var("PB","Sex", "M")
 
 
 png(file=paste0("./output/final/modelling/", z_event_endpoint, "/plots/gam_RR_agesex_PB.png"),
-    width = 1000, height=500)
+    width = 1000, height=600)
 
 plot_grid(p_title, plot_grid(p1, p2, p3, p4, labels = "AUTO", ncol=2), ncol=1,
           rel_heights = c(0.5,6))
