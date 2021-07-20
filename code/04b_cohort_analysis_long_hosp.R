@@ -67,7 +67,7 @@ z <- z %>%
 #select all people in hospital post dec 08
 #replace missing discharge dates with the end of study date to calculate the intervals
 
-hosp_adm_nov01 <- readRDS("/conf/EAVE/GPanalysis/data/any_hospitalisation_post_01022020 (2).RDS")
+hosp_adm_nov01 <- readRDS("/conf/EAVE/GPanalysis/data/any_hospitalisation_post_01022020.rds")
 
 z_hosp <- hosp_adm_nov01 %>% filter (is.na(discharge_date) | discharge_date >= a_begin) %>% 
   mutate(discharge_date = if_else(is.na(discharge_date), a_end, discharge_date))%>% 
@@ -206,3 +206,4 @@ z_vaccination_long <- bind_rows(z_wide,z_res) %>%
   #                                                    "v1_21:27","v1_28:34","v1_35:41", "v1_42+", "v2_0:6","v2_7+")) )
 
 unique(z_vaccination_long$vacc_status)
+

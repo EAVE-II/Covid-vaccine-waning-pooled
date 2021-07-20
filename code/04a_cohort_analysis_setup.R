@@ -17,6 +17,11 @@ if (z_event_endpoint =="death_hosp") z_event <- covid_hosp_death %>%
 
 # Extract end date
 a_end <- as.Date("2021-04-30")
+
+# Filter event data to end date
+z_event <- z_event %>%
+  filter(admission_date <= a_end)
+
 # Event
 output_list$endpoint <- z_event_endpoint
 # Number of events
@@ -29,8 +34,8 @@ output_list$controls_per_event <- z_n_controls_per_event
 
 #make anyone vaccinated after the maximum endpoint time unvaccinated
 z_vaccinations <- filter(df_vaccinations, date_vacc_1 <= a_end) %>% 
-  mutate(vacc_type_2 = if_else(date_vacc_2 >= a_end, NA_character_ , vacc_type_2),
-         date_vacc_2 = as.Date(ifelse(date_vacc_2 >= a_end, NA, date_vacc_2), origin=as.Date("1970-01-01")) )
+  mutate(vacc_type_2 = if_else(date_vacc_2 > a_end, NA_character_ , vacc_type_2),
+         date_vacc_2 = as.Date(ifelse(date_vacc_2 > a_end, NA, date_vacc_2), origin=as.Date("1970-01-01")) )
 
 #in z_event admission date is generic and meansdate death for deaths, date icu admission for icu
 
@@ -136,7 +141,7 @@ project_path <- paste0(Location,"EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning
 
 #saveRDS(df, paste0(project_path,"output/df_long_",z_event_endpoint,".RDS"))
 #saveRDS(df, paste0(project_path,"output/df_long_",z_event_endpoint,"_12wks.RDS"))
-saveRDS(df, paste0(project_path,"output/df_long_",z_event_endpoint,"_8wks.RDS"))
+saveRDS(df, paste0(project_path,"output/df_long_",z_event_endpoint,"_10wks.RDS"))
 saveRDS(df, paste0(".output/df_long_",z_event_endpoint,"_8wks.RDS"))
 saveRDS(df, paste0("./output/df_long_death_hosp_8wks.RDS"))
 

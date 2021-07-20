@@ -8,7 +8,7 @@ project_path <- paste0(Location,"EAVE/GPanalysis/progs/RM/Vaccine/Vaccine_waning
 
 #df <- readRDS(paste0(project_path, "/output/df_long_death_hosp.RDS"))
 #df <- readRDS(paste0(project_path, "/output/df_long_death_hosp_12wks.RDS"))
-df <- readRDS(paste0("./output/df_long_death_hosp_8wks.RDS"))
+df <- readRDS(paste0("./output/df_long_death_hosp_10wks.RDS"))
 
 
 ## Eliminate care homes 
@@ -220,6 +220,6 @@ z_out_results <- z_out_list[c(1,6,10)] %>%
 
 #write.csv(z_out_results, paste0("./output/final/cohort_analysis/cohort_analysis_tbl.csv"))
 #write.csv(z_out_results, paste0("./output/final/cohort_analysis/cohort_analysis_tbl_12wks.csv"))
-write.csv(z_out_results, paste0("./output/final/cohort_analysis/cohort_analysis_tbl_8wks.csv"))
+write.csv(z_out_results, paste0("./output/final/cohort_analysis/cohort_analysis_tbl_10wks.csv"))
 write.csv(z_out_results, paste0("./output/final/cohort_analysis/cohort_analysis_tbl_8wks_full.csv"))
 
