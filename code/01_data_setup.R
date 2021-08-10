@@ -26,7 +26,7 @@ a_end <- as.Date("2021-04-30")
 
 ## EAVE Cohort - Endpoints as of May 18th 2021
 # Load in End points dataset
-EAVE_cohort <- readRDS(paste0(Location,"EAVE/GPanalysis/outputs/temp/Cohort_Demog_Endpoints_Times2021-05-18.rds")) %>%
+EAVE_cohort <- readRDS(paste0(Location,"EAVE/GPanalysis/outputs/temp/Cohort_Demog_Endpoints_Times2021-06-30.rds")) %>%
   dplyr::filter(!duplicated(EAVE_LINKNO))%>%
   #remove all who have died before the beginning
   dplyr::filter(is.na(NRS.Date.Death) | (!is.na(NRS.Date.Death) & 
