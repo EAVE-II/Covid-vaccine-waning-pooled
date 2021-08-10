@@ -7,6 +7,10 @@
 #### 0 - Set up ####
 # Run 0 - Set up in 03d_matching_modelling.R to set up df_cc_ps_matches to outcome
 
+# Repeat for each outcome
+z_event_endpoint <- "death_hosp"
+#z_event_endpoint <- "hosp_covid"
+#z_event_endpoint <- "death_covid"
 
 #### 1 - Table of daily follow-up #####
 
