@@ -60,7 +60,7 @@ write.csv(daily_gam_output, paste0("./output/meta-analysis/tbl_gam_", z_event_en
 ## Link age and sex into data
 # Group age into 2 groups to allow for sufficient sample sizes
 df_cc_ps_matches <- df_cc_ps_matches %>%
-  mutate(age_grp2 = ifelse(age_grp == "18-64", "18-64", "65+")) %>%
+  #mutate(age_grp2 = ifelse(age_grp == "18-64", "18-64", "65+")) %>%
   left_join(select(df_cohort, EAVE_LINKNO, Sex))
 
 
@@ -95,18 +95,18 @@ GAM_tbl_var <- function(variable){
 }
 
 # Sex
-daily_gam_output_sex <- GAM_tbl_var("Sex") %>%
-  rename(Subgroup = Sex)
+#daily_gam_output_sex <- GAM_tbl_var("Sex") %>%
+ # rename(Subgroup = Sex)
 
-# Age (Binary age)
-daily_gam_output_age <- GAM_tbl_var("age_grp2")%>%
-  rename(Subgroup = age_grp2)
+# Age
+daily_gam_output_age <- GAM_tbl_var("age_grp")%>%
+  rename(Subgroup = age_grp)
 
 # Stack ontop
-daily_gam_output_agesex <- bind_rows(daily_gam_output_sex, daily_gam_output_age)
+#daily_gam_output_agesex <- bind_rows(daily_gam_output_sex, daily_gam_output_age)
 
 # Output
-write.csv(daily_gam_output_agesex, paste0("./output/meta-analysis/tbl_gam_agesex_", z_event_endpoint, ".csv"),
+write.csv(daily_gam_output_age, paste0("./output/meta-analysis/tbl_gam_age_", z_event_endpoint, ".csv"),
           row.names = F)
 
 
