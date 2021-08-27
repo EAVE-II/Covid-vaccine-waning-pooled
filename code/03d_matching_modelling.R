@@ -649,8 +649,8 @@ z.agg$data %>% mutate(long = as.numeric(z.yr) >70) %>%
 
 # Take data and subset to vaccine type
 z_pois <- z.agg$data %>%
-  mutate(day =  as.numeric(z.yr)-1) %>%
-  filter(vacc_type == z_vacc_type) 
+  dplyr::mutate(day =  as.numeric(z.yr)-1) %>%
+  dplyr::filter(vacc_type == z_vacc_type) 
 
 # GAM
 myknots <-  seq(14,70, by =7)
@@ -687,13 +687,14 @@ X[,!(c_uv | c_vacc)] <- 0
 #set vaccine column to 1 to get the effect
 X[, "vaccvacc"] <- 1
 
+# There shouldn't be offset difference
 #offset difference
-offset_diff <- log(z_nd[r_uv,"pyears"]) - log(z_nd[r_vacc,"pyears"])
+#offset_diff <- log(z_nd[r_uv,"pyears"]) - log(z_nd[r_vacc,"pyears"])
 
-difference <- X %*% coef(z_gam_vacc) + offset_diff
+difference <- X %*% coef(z_gam_vacc) #+ offset_diff
 
 # Obtain 95% CIs
-se_difference <- sqrt(rowSums((X %*% vcov(z_gam_vacc, unconditional=TRUE)) * X))
+se_difference <- sqrt(diag(X %*% vcov(z_gam_vacc, unconditional=TRUE) %*% t(X)))
 z_lcl <- difference - 1.96*se_difference
 z_ucl <- difference + 1.96*se_difference
 
@@ -721,10 +722,11 @@ write.csv(z_rr, paste0("./output/final/modelling/", z_event_endpoint, "/poisson_
 
 ## Waning p-value
 # p-value for quadratic term post 14 days
-z_quad <- glm(event ~ offset(log(pyears)) +  day*vacc + I(day^2)*vacc, 
+z_quad <- glm(event ~ offset(log(pyears)) +  day*vacc + I(day^2)*vacc,
               family=poisson, data=z_pois, subset = vacc_type == z_vacc_type & day > 14)
-z_linear <- glm(event ~ offset(log(pyears)) +  day*vacc, 
+z_linear <- glm(event ~ offset(log(pyears)) +  day*vacc,
               family=poisson, data=z_pois, subset = vacc_type == z_vacc_type & day > 14)
+
 
 summary(z_quad)
 # Check

@@ -212,6 +212,9 @@ explanatory <- c("Total","event","event14","Sex", "ageYear", "age_grp", "simd202
                  "n_tests_gp", "test_before_dec8", "ave_hh_age", "n_hh_gp", "care_home_elderly",
                  "bmi_cat", "EAVE_Smoke", 
                   qcovid_diags)
+# Steven: There's a problem wen 'Total' is included as an explanatory variable.
+# summary_factorlist_wt tries to pull it as a column from the data argument, but
+# it isn't there. May need modified.
 
 ## Total population summary tables
 

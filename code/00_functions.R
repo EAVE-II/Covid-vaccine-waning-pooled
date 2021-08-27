@@ -241,7 +241,6 @@ cov_bal_vacc_fn <- function(data, explanatory, z_vacc_type){
 # - variable = variable to subset
 # - level = level of interest to subset variable to
 
-
 GLM_rr_var <- function(variable, level){
   
   z.fmla <- as.formula(paste("Surv(time_to_hosp,event)",
@@ -314,7 +313,6 @@ GLM_rr_var <- function(variable, level){
 # - z_vacc_type = vaccine type (AZ or PB)
 # - variable = variable to subset
 # - level = level of interest to subset variable to
-
 
 GAM_rr_var <- function(z_vacc_type, variable, level){
   

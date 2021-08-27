@@ -220,11 +220,10 @@ covid_death <- EAVE_cohort %>%
 
 ## Any deaths
 any_death <- EAVE_cohort %>% 
-  dplyr::select(EAVE_LINKNO, SpecimenDate, death_covid, NRS.Date.Death) %>% 
+  dplyr::select(EAVE_LINKNO, SpecimenDate, NRS.Date.Death) %>% 
   filter(!is.na(NRS.Date.Death)) %>% 
   filter(NRS.Date.Death >= a_begin) %>% 
-  dplyr::rename(admission_date = NRS.Date.Death) %>% 
-  dplyr::select(-death_covid)
+  dplyr::rename(admission_date = NRS.Date.Death) 
 
 ## COVID-19 hospitalisations and deaths (composite outcome)
 covid_hosp_death <- covid_death %>%
