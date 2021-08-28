@@ -47,7 +47,7 @@ z_title <- "COVID-19 hospitalisations and deaths"}
 if (z_event_endpoint =="positive_test") {z_event <- positive_test}
 
 # Find end date according to admission date
-a_end <- as.Date("2021-04-30")
+a_end <- as.Date("2021-05-30")
 
 # Filter event data to end date
 z_event <- z_event %>%
@@ -86,6 +86,19 @@ z_chrt_desc <- z_chrt_desc %>%
   mutate(vacc1 = if_else(vacc_type %in% c("PB", "AZ"), 1,0))  %>%
   mutate(vacc2 = if_else(vacc_type_2 %in% c("PB", "AZ"), 1,0))
 
+# Add column for last vaccine and dose received in cohort time period
+z_chrt_desc <- z_chrt_desc %>%
+  mutate(vacc_type_comb = case_when(vacc_type_2  == 'AZ' ~ 'AZ_v2',
+                                    vacc_type_2  == 'PB' ~ 'PB_v2',
+                                    vacc_type  == 'AZ' ~ 'AZ_v1',
+                                    vacc_type  == 'PB' ~ 'PB_v1'))
+
+# Add column for vaccination category at time of event 
+z_chrt_desc <- z_chrt_desc %>%
+  mutate(vacc_type_comb_at_time_of_event = 
+           case_when(admission_date >= date_vacc_2 ~ paste0(vacc_type_2, '_v2'),
+                     admission_date >= date_vacc_1 ~ paste0(vacc_type, '_v1')))
+
 # Link in event data
 z_chrt_desc <- z_chrt_desc %>%
   left_join(select(z_event, -SpecimenDate), by=c("EAVE_LINKNO_uv" = "EAVE_LINKNO"))
@@ -112,7 +125,110 @@ z_chrt_desc <- z_chrt_desc %>%
   mutate(event_death = replace_na(event_death, "0"))
 
 
+#Add days spent in each vaccination category
+z_chrt_desc <- z_chrt_desc %>%
+  mutate( days_uv = as.numeric(pmin(a_end, date_vacc_1, NRS.Date.Death, na.rm = TRUE) - a_begin),
+          
+          days_AZ_v1 = case_when(vacc_type == 'AZ' ~  
+                as.numeric(pmin(a_end, date_vacc_2, NRS.Date.Death, na.rm = TRUE) - date_vacc_1)),
+                
+          days_PB_v1 = case_when(vacc_type == 'PB' ~  
+          as.numeric(pmin(a_end, date_vacc_2, NRS.Date.Death, na.rm = TRUE) - date_vacc_1)),
+          
+          days_AZ_v2 = case_when(vacc_type_2 == 'AZ' ~  
+          as.numeric(pmin(a_end, NRS.Date.Death, na.rm = TRUE) - date_vacc_2)),
+          
+          days_PB_v2 = case_when(vacc_type_2 == 'PB' ~  
+          as.numeric(pmin(a_end, NRS.Date.Death, na.rm = TRUE) - date_vacc_2))) %>%
+          # If any NA, then replace with zero
+          mutate_at(vars( starts_with("days") ), funs( replace_na(., 0) ) )
+  
+#Add vaccination cateogory at time of various events
+z_chrt_desc <- z_chrt_desc %>%
+  mutate(vacc_at_hosp = case_when(hosp_admission_date >= date_vacc_2 ~ paste0(vacc_type_2, '_v2'),
+                                  hosp_admission_date >= date_vacc_1 ~ paste0(vacc_type, '_v1'),
+                                  !is.na(hosp_admission_date) ~ 'uv'),
+         
+         vacc_at_hosp_minus_14 = case_when(hosp_admission_date -14 >= date_vacc_2 ~ paste0(vacc_type_2, '_v2'),
+                                  hosp_admission_date - 14 >= date_vacc_1 ~ paste0(vacc_type, '_v1'),
+                                  !is.na(hosp_admission_date) ~ 'uv'),
+         
+         vacc_at_death = case_when(NRS.Date.Death >= date_vacc_2 ~ paste0(vacc_type_2, '_v2'),
+                                   NRS.Date.Death >= date_vacc_1 ~ paste0(vacc_type, '_v1'),
+                                   !is.na(NRS.Date.Death) ~ 'uv'),
+         
+         vacc_at_death_minus_14 = case_when(NRS.Date.Death -14 >= date_vacc_2 ~ paste0(vacc_type_2, '_v2'),
+                                   NRS.Date.Death - 14 >= date_vacc_1 ~ paste0(vacc_type, '_v1'),
+                                   !is.na(NRS.Date.Death) ~ 'uv'),
+         
+         vacc_at_hosp_death = case_when(admission_date >= date_vacc_2 ~ paste0(vacc_type_2, '_v2'),
+                                   admission_date >= date_vacc_1 ~ paste0(vacc_type, '_v1'),
+                                   !is.na(admission_date) ~ 'uv'),
+         
+         vacc_at_hosp_death_minus_14 = case_when(admission_date -14 >= date_vacc_2 ~ paste0(vacc_type_2, '_v2'),
+                                    admission_date - 14 >= date_vacc_1 ~ paste0(vacc_type, '_v1'),
+                                    !is.na(admission_date) ~ 'uv'))
 
+
+##### Table of events and event rates by vaccine category
+
+data <- z_chrt_desc
+
+event_summary_tbl_wt <- function(data){
+  
+  summary_tbl_list <- list()
+  
+  # First row is person years spent with each vaccination status in cohort
+  first_row <-  t(select(data, starts_with('days'))) %*% pull(data, eave_weight)/(365.21 * 1e+06) 
+  
+  dependent <- grep('vacc_at', names(data), value = TRUE)
+  
+  for (i in 1:length(dependent)){
+    
+    summary_tbl_list[[i]] <- data %>%
+    group_by(!!sym(dependent[i]) ) %>%
+    summarise(n = sum(eave_weight)) %>%
+    na.omit() %>%
+    mutate(rate = n/first_row,0)  %>% 
+    # format numbers with commas every 3 digits  
+    mutate_if(is.numeric, ~formatC(round(.), format = "f", big.mark = ",", drop0trailing = TRUE)) %>%
+    mutate(n = paste0( n, ' (', rate, ')') )  %>%
+    select(-rate) %>%
+    pivot_wider(names_from = !!sym(dependent[i]), values_from = n) %>%
+    mutate(Event = dependent[i])  %>%
+    select('Event', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+    }
+   
+# Combine list together to make dataset
+summary_tbl_wt <- summary_tbl_list %>% 
+  reduce(full_join) %>%
+  mutate(Event = c('Hospitalisation after vaccination',
+                   'Hospitalisation >= 14 days post vaccination',
+                   'Death after vaccination',
+                   'Death >= 14 days post vaccination',
+                   'Hospitliation or death after vaccination',
+                   'Hospitaisation or death >= 14 days post vaccination'))
+
+names(summary_tbl_wt) <- c('Event', 'Unvaccinated', 'First dose ChAdOx1', 
+                           'Second dose ChAdOx1', 'First dose BNT162b2', 
+                           'Second dose BNT162b2')
+
+first_row <- formatC(round(first_row, 2), format = "f", big.mark = ",", drop0trailing = TRUE)
+
+names(first_row) <- names(summary_tbl_wt)[-1]
+
+first_row <- data.frame(as.list(first_row), stringsAsFactors = FALSE) %>% 
+             mutate(Event = 'Person years (millions)') %>%
+             relocate(Event)
+  
+summary_tbl_wt <- bind_rows(first_row, summary_tbl_wt) 
+}
+
+bob <- event_summary_tbl_wt(z_chrt_desc)
+
+
+
+       
 ## Add in household information
 # Household information (from Sept 2020)
 Cohort_Household <- readRDS("/conf/EAVE/GPanalysis/outputs/temp/Cohort_Household.rds") %>%
@@ -208,13 +324,10 @@ n2/n
 # QCOVID risk groups
 qcovid_diags <- colnames(df_cohort)[startsWith(colnames(df_cohort), "Q")]
 # Other explanatory variables + qcovid_diag
-explanatory <- c("Total","event","event14","Sex", "ageYear", "age_grp", "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
+explanatory <- c("Total","Sex", "ageYear", "age_grp", "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
                  "n_tests_gp", "test_before_dec8", "ave_hh_age", "n_hh_gp", "care_home_elderly",
                  "bmi_cat", "EAVE_Smoke", 
                   qcovid_diags)
-# Steven: There's a problem wen 'Total' is included as an explanatory variable.
-# summary_factorlist_wt tries to pull it as a column from the data argument, but
-# it isn't there. May need modified.
 
 ## Total population summary tables
 
@@ -223,14 +336,25 @@ summary_tbl_wt1 <- summary_factorlist_wt(z_chrt_desc %>%
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            mutate(care_home_elderly = as.character(care_home_elderly)),
                                          "vacc1", explanatory = explanatory)
-# Dependent = vaccination type
+names(summary_tbl_wt1) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose vaccinated')
+
+# Dependent = vaccination type - by dose and brand
 summary_tbl_wt2 <- summary_factorlist_wt(z_chrt_desc %>%
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            mutate(care_home_elderly = as.character(care_home_elderly)),
-                                         "vacc_type", explanatory = explanatory)
+                                         "vacc_type_comb", explanatory = explanatory) %>%
+  select('characteristic', 'levels', 'NA', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+
+names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose ChAdOx1',
+                            'Two doses ChAdOx1', 'One dose BNT162b2', 'Two doses BNT162b2')
+
+summary_tbl_wt2['1', 'Levels'] <- ''
+
 # Combine and save as csv
-summary_tbl_wt <- left_join(summary_tbl_wt1, summary_tbl_wt2)
-write.csv(summary_tbl_wt, "./output/final/descriptives/summary_table_weights.csv", row.names = F)
+#summary_tbl_wt <- left_join(summary_tbl_wt1, summary_tbl_wt2)
+write.csv(summary_tbl_wt2, "./output/final/descriptives/summary_table_weights.csv", row.names = F)
+
+
 
 
 
@@ -244,10 +368,40 @@ summary_tbl_wt1 <- summary_factorlist_wt(z_chrt_desc %>%
 summary_tbl_wt2 <- summary_factorlist_wt(z_chrt_desc %>% 
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            filter(care_home_elderly == 0),
-                                         "vacc_type", explanatory = explanatory)
+                                         "vacc_type_comb", explanatory = explanatory) %>%
+          select('characteristic', 'levels', 'NA', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+
+names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose ChAdOx1',
+                            'Two doses ChAdOx1', 'One dose BNT162b2', 'Two doses BNT162b2')
+
+summary_tbl_wt2['1', 'Levels'] <- ''
 # Combine and save
-summary_tbl_wt <- left_join(summary_tbl_wt1, summary_tbl_wt2)
+#summary_tbl_wt <- left_join(summary_tbl_wt1, summary_tbl_wt2)
 write.csv(summary_tbl_wt, "./output/final/descriptives/summary_table_non_carehome_weights.csv", row.names=F)
+
+
+
+
+
+
+
+explanatory <- ()
+
+# Dependent = vaccination type - by dose and brand at time of vaccination
+summary_tbl_wt3 <- summary_factorlist_wt(z_chrt_desc %>%
+                                           mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
+                                           mutate(care_home_elderly = as.character(care_home_elderly)),
+                                         "vacc_type_comb_at_time_of_event", explanatory = explanatory) %>%
+  select('characteristic', 'levels', 'NA', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+
+
+names(summary_tbl_wt3) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose ChAdOx1',
+                            'Two doses ChAdOx1', 'One dose BNT162b2', 'Two doses BNT162b2')
+
+summary_tbl_wt3['1', 'Levels'] <- ''
+
+write.csv(summary_tbl_wt3, "./output/final/descriptives/summary_table_weights.csv", row.names = F)
+
 
 
 

@@ -95,6 +95,74 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
 }
 
 
+##### Table of events and event rates by vaccine category
+# Calculates the standardised mean differences (smd) between the uv and vacc for each of 
+# the categorical explanatory variables for a vaccine type.
+
+# Input:
+# - data = the cohort descriptive dataset - z_chrt_desc
+
+# Output:
+# A table with weighted millions of person years spent with in each vaccination category in
+# the cohort, and weighted count of events and event rates per million person years for
+# hospitaliation, death, and hospitalisation or death post vaccination, and more than 14
+# days post vaccination
+
+# Table output to be used to plot comparisons between the matched and overall population 
+# (before matching - crude)
+event_summary_wt <- function(data){
+  
+  summary_tbl_list <- list()
+  
+  # First row is person years spent with each vaccination status in cohort
+  first_row <-  t(select(data, starts_with('days'))) %*% pull(data, eave_weight)/(365.21 * 1e+06) 
+  
+  dependent <- grep('vacc_at', names(data), value = TRUE)
+  
+  for (i in 1:length(dependent)){
+    
+    summary_tbl_list[[i]] <- data %>%
+      group_by(!!sym(dependent[i]) ) %>%
+      summarise(n = sum(eave_weight)) %>%
+      na.omit() %>%
+      mutate(rate = n/first_row,0)  %>% 
+      # format numbers with commas every 3 digits  
+      mutate_if(is.numeric, ~formatC(round(.), format = "f", big.mark = ",", drop0trailing = TRUE)) %>%
+      mutate(n = paste0( n, ' (', rate, ')') )  %>%
+      select(-rate) %>%
+      pivot_wider(names_from = !!sym(dependent[i]), values_from = n) %>%
+      mutate(Event = dependent[i])  %>%
+      select('Event', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+  }
+  
+  # Combine list together to make dataset
+  summary_tbl_wt <- summary_tbl_list %>% 
+    reduce(full_join) %>%
+    mutate(Event = c('Hospitalisation after vaccination',
+                     'Hospitalisation >= 14 days post vaccination',
+                     'Death after vaccination',
+                     'Death >= 14 days post vaccination',
+                     'Hospitliation or death after vaccination',
+                     'Hospitaisation or death >= 14 days post vaccination'))
+  
+  first_row <- formatC(round(first_row, 2), format = "f", big.mark = ",", drop0trailing = TRUE)
+  
+  names(first_row) <- names(summary_tbl_wt)[-1]
+  
+  first_row <- data.frame(as.list(first_row), stringsAsFactors = FALSE) %>% 
+    mutate(Event = 'Person years (millions)') %>%
+    relocate(Event)
+  
+  summary_tbl_wt <- bind_rows(first_row, summary_tbl_wt) 
+  
+  names(summary_tbl_wt) <- c('Event', 'Unvaccinated', 'First dose ChAdOx1', 
+                             'Second dose ChAdOx1', 'First dose BNT162b2', 
+                             'Second dose BNT162b2')
+  
+  summary_tbl_wt
+}
+
+
 
 
 ##### Covariate balance #####

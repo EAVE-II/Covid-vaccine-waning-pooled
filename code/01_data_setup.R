@@ -19,8 +19,8 @@ Location <- "/conf/"  # Server
 # Cohort start date - 8th Dec 2020 (when vaccines first rolled out in Scotland)
 a_begin <- as.Date("2020-12-08")
 
-# Cohort end date - 30th April 2021 (to keep consistent across the UK nations)
-a_end <- as.Date("2021-04-30")
+# Cohort end date - 30th June 2021 (to keep consistent across the UK nations)
+a_end <- as.Date("2021-05-30")
 
 ##### 1 - Baseline characteristic data (df_cohort)  ####
 
@@ -110,7 +110,7 @@ df_cohort <- EAVE_cohort %>%
   # If NA then 0 tests were taken
   mutate(n_tests = if_else(is.na(n_tests),0L,n_tests) ) %>%
   # Group the number of tests into categories
-  mutate(n_tests_gp = cut(n_tests, breaks = c(-1,0,1,2,3,9,100), 
+  mutate(n_tests_gp = cut(n_tests, breaks = c(-1,0,1,2,3,9, max(n_tests)), 
                           labels=c("0","1","2","3","4-9","10+"))) %>%
   # Link previous positive tests
   left_join(pos_tests %>%
@@ -179,7 +179,7 @@ df_vaccinations <- left_join(Vaccinations1,Vaccinations2, by="EAVE_LINKNO") %>%
   # Omit records with 2nd dose too close to 1st
   filter(is.na(date_vacc_2) | !is.na(date_vacc_2)&(date_vacc_2 > date_vacc_1 + 18)) %>%
   # Omit 1st dose records before 8th December 2020
-  filter(date_vacc_1 >= "2020-12-08")
+  filter(date_vacc_1 >= a_begin)
 
 
 
