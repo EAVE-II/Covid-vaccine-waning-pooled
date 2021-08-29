@@ -230,7 +230,7 @@ covid_hosp_death <- covid_death %>%
   dplyr::rename(NRS.Date.Death= admission_date) %>% # 
   full_join(covid_hospitalisations) %>%
   dplyr::rename(hosp_admission_date = admission_date) %>%
-  # If hospital admission happens before death then put death date
+  # If hospital admission happens before death then put hospitalisation date
   # Fill in the remaining with the non-NA dates
   mutate(admission_date = if_else(hosp_admission_date < NRS.Date.Death, hosp_admission_date,
                                   NRS.Date.Death)) %>%

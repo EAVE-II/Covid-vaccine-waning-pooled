@@ -45,7 +45,7 @@ z_title <- "COVID-19 positive test"}
 colnames(z_event)
 
 # Find end date according to admission date
-a_end <- as.Date("2021-04-30")
+a_end <- as.Date("2021-05-30")
 
 # Filter event data to end date
 z_event <- z_event %>%

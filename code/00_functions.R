@@ -115,24 +115,22 @@ event_summary_wt <- function(data){
   summary_tbl_list <- list()
   
   # First row is person years spent with each vaccination status in cohort
-  first_row <-  t(select(data, starts_with('days'))) %*% pull(data, eave_weight)/(365.21 * 1e+06) 
+  first_row <-  t(select(data, starts_with('days'))) %*% pull(data, eave_weight)/(365.21 * 1000) 
   
   dependent <- grep('vacc_at', names(data), value = TRUE)
   
   for (i in 1:length(dependent)){
-    
     summary_tbl_list[[i]] <- data %>%
       group_by(!!sym(dependent[i]) ) %>%
       summarise(n = sum(eave_weight)) %>%
       na.omit() %>%
-      mutate(rate = n/first_row,0)  %>% 
-      # format numbers with commas every 3 digits  
-      mutate_if(is.numeric, ~formatC(round(.), format = "f", big.mark = ",", drop0trailing = TRUE)) %>%
+      mutate(rate = sprintf('%.2f',n/first_row))  %>% 
+      # format numbers with commas every 3 digits,  
+      mutate_if(is.numeric, ~formatC(., format = "f", big.mark = ",", drop0trailing = TRUE)) %>%
       mutate(n = paste0( n, ' (', rate, ')') )  %>%
       select(-rate) %>%
       pivot_wider(names_from = !!sym(dependent[i]), values_from = n) %>%
-      mutate(Event = dependent[i])  %>%
-      select('Event', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+      mutate(Event = dependent[i])  
   }
   
   # Combine list together to make dataset
@@ -143,17 +141,17 @@ event_summary_wt <- function(data){
                      'Death after vaccination',
                      'Death >= 14 days post vaccination',
                      'Hospitliation or death after vaccination',
-                     'Hospitaisation or death >= 14 days post vaccination'))
+                     'Hospitaisation or death >= 14 days post vaccination')) 
   
-  first_row <- formatC(round(first_row, 2), format = "f", big.mark = ",", drop0trailing = TRUE)
+  first_row <- formatC(sprintf('%.2f',first_row), format = "f", big.mark = ",", drop0trailing = TRUE)
   
-  names(first_row) <- names(summary_tbl_wt)[-1]
+  names(first_row) <- names(summary_tbl_wt)[1:5]
   
   first_row <- data.frame(as.list(first_row), stringsAsFactors = FALSE) %>% 
-    mutate(Event = 'Person years (millions)') %>%
+    mutate(Event = 'Person years (thousands)') %>%
     relocate(Event)
   
-  summary_tbl_wt <- bind_rows(first_row, summary_tbl_wt) 
+  summary_tbl_wt <- bind_rows(first_row, summary_tbl_wt)
   
   names(summary_tbl_wt) <- c('Event', 'Unvaccinated', 'First dose ChAdOx1', 
                              'Second dose ChAdOx1', 'First dose BNT162b2', 

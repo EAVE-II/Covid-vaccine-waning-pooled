@@ -93,17 +93,15 @@ z_chrt_desc <- z_chrt_desc %>%
                                     vacc_type  == 'AZ' ~ 'AZ_v1',
                                     vacc_type  == 'PB' ~ 'PB_v1'))
 
+# Link in event data
+z_chrt_desc <- z_chrt_desc %>%
+  left_join(select(z_event, -SpecimenDate), by=c("EAVE_LINKNO_uv" = "EAVE_LINKNO"))
+
 # Add column for vaccination category at time of event 
 z_chrt_desc <- z_chrt_desc %>%
   mutate(vacc_type_comb_at_time_of_event = 
            case_when(admission_date >= date_vacc_2 ~ paste0(vacc_type_2, '_v2'),
                      admission_date >= date_vacc_1 ~ paste0(vacc_type, '_v1')))
-
-# Link in event data
-z_chrt_desc <- z_chrt_desc %>%
-  left_join(select(z_event, -SpecimenDate), by=c("EAVE_LINKNO_uv" = "EAVE_LINKNO"))
-
-
 
 # Make event indicators post vaccination and overall for uv
 z_chrt_desc <- z_chrt_desc %>%
@@ -126,20 +124,21 @@ z_chrt_desc <- z_chrt_desc %>%
 
 
 #Add days spent in each vaccination category
+# The order they are added is actually important for using the function event_summary_wt
 z_chrt_desc <- z_chrt_desc %>%
-  mutate( days_uv = as.numeric(pmin(a_end, date_vacc_1, NRS.Date.Death, na.rm = TRUE) - a_begin),
-          
-          days_AZ_v1 = case_when(vacc_type == 'AZ' ~  
+  mutate( days_AZ_v1 = case_when(vacc_type == 'AZ' ~  
                 as.numeric(pmin(a_end, date_vacc_2, NRS.Date.Death, na.rm = TRUE) - date_vacc_1)),
                 
+          days_AZ_v2 = case_when(vacc_type_2 == 'AZ' ~  
+                                   as.numeric(pmin(a_end, NRS.Date.Death, na.rm = TRUE) - date_vacc_2)),
+          
           days_PB_v1 = case_when(vacc_type == 'PB' ~  
           as.numeric(pmin(a_end, date_vacc_2, NRS.Date.Death, na.rm = TRUE) - date_vacc_1)),
           
-          days_AZ_v2 = case_when(vacc_type_2 == 'AZ' ~  
+          days_PB_v2 = case_when(vacc_type_2 == 'PB' ~  
           as.numeric(pmin(a_end, NRS.Date.Death, na.rm = TRUE) - date_vacc_2)),
           
-          days_PB_v2 = case_when(vacc_type_2 == 'PB' ~  
-          as.numeric(pmin(a_end, NRS.Date.Death, na.rm = TRUE) - date_vacc_2))) %>%
+          days_uv = as.numeric(pmin(a_end, date_vacc_1, NRS.Date.Death, na.rm = TRUE) - a_begin)) %>%
           # If any NA, then replace with zero
           mutate_at(vars( starts_with("days") ), funs( replace_na(., 0) ) )
   
@@ -169,66 +168,6 @@ z_chrt_desc <- z_chrt_desc %>%
                                     admission_date - 14 >= date_vacc_1 ~ paste0(vacc_type, '_v1'),
                                     !is.na(admission_date) ~ 'uv'))
 
-
-##### Table of events and event rates by vaccine category
-
-data <- z_chrt_desc
-
-event_summary_tbl_wt <- function(data){
-  
-  summary_tbl_list <- list()
-  
-  # First row is person years spent with each vaccination status in cohort
-  first_row <-  t(select(data, starts_with('days'))) %*% pull(data, eave_weight)/(365.21 * 1e+06) 
-  
-  dependent <- grep('vacc_at', names(data), value = TRUE)
-  
-  for (i in 1:length(dependent)){
-    
-    summary_tbl_list[[i]] <- data %>%
-    group_by(!!sym(dependent[i]) ) %>%
-    summarise(n = sum(eave_weight)) %>%
-    na.omit() %>%
-    mutate(rate = n/first_row,0)  %>% 
-    # format numbers with commas every 3 digits  
-    mutate_if(is.numeric, ~formatC(round(.), format = "f", big.mark = ",", drop0trailing = TRUE)) %>%
-    mutate(n = paste0( n, ' (', rate, ')') )  %>%
-    select(-rate) %>%
-    pivot_wider(names_from = !!sym(dependent[i]), values_from = n) %>%
-    mutate(Event = dependent[i])  %>%
-    select('Event', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
-    }
-   
-# Combine list together to make dataset
-summary_tbl_wt <- summary_tbl_list %>% 
-  reduce(full_join) %>%
-  mutate(Event = c('Hospitalisation after vaccination',
-                   'Hospitalisation >= 14 days post vaccination',
-                   'Death after vaccination',
-                   'Death >= 14 days post vaccination',
-                   'Hospitliation or death after vaccination',
-                   'Hospitaisation or death >= 14 days post vaccination'))
-
-names(summary_tbl_wt) <- c('Event', 'Unvaccinated', 'First dose ChAdOx1', 
-                           'Second dose ChAdOx1', 'First dose BNT162b2', 
-                           'Second dose BNT162b2')
-
-first_row <- formatC(round(first_row, 2), format = "f", big.mark = ",", drop0trailing = TRUE)
-
-names(first_row) <- names(summary_tbl_wt)[-1]
-
-first_row <- data.frame(as.list(first_row), stringsAsFactors = FALSE) %>% 
-             mutate(Event = 'Person years (millions)') %>%
-             relocate(Event)
-  
-summary_tbl_wt <- bind_rows(first_row, summary_tbl_wt) 
-}
-
-bob <- event_summary_tbl_wt(z_chrt_desc)
-
-
-
-       
 ## Add in household information
 # Household information (from Sept 2020)
 Cohort_Household <- readRDS("/conf/EAVE/GPanalysis/outputs/temp/Cohort_Household.rds") %>%
@@ -354,8 +293,10 @@ summary_tbl_wt2['1', 'Levels'] <- ''
 #summary_tbl_wt <- left_join(summary_tbl_wt1, summary_tbl_wt2)
 write.csv(summary_tbl_wt2, "./output/final/descriptives/summary_table_weights.csv", row.names = F)
 
+# Event counts and rates table
+event_summary_tbl_wt <- event_summary_wt(z_chrt_desc)
 
-
+write.csv(event_summary_tbl_wt, "./output/final/descriptives/event_summary_table_weights.csv", row.names = F)
 
 
 ## Non-elderly care home population summary tables
@@ -377,36 +318,12 @@ names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dos
 summary_tbl_wt2['1', 'Levels'] <- ''
 # Combine and save
 #summary_tbl_wt <- left_join(summary_tbl_wt1, summary_tbl_wt2)
-write.csv(summary_tbl_wt, "./output/final/descriptives/summary_table_non_carehome_weights.csv", row.names=F)
+write.csv(summary_tbl_wt2, "./output/final/descriptives/summary_table_non_carehome_weights.csv", row.names=F)
 
+# Event counts and rates table
+event_summary_tbl_wt <- event_summary_wt(filter(z_chrt_desc, care_home_elderly == 0))
 
-
-
-
-
-
-explanatory <- ()
-
-# Dependent = vaccination type - by dose and brand at time of vaccination
-summary_tbl_wt3 <- summary_factorlist_wt(z_chrt_desc %>%
-                                           mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
-                                           mutate(care_home_elderly = as.character(care_home_elderly)),
-                                         "vacc_type_comb_at_time_of_event", explanatory = explanatory) %>%
-  select('characteristic', 'levels', 'NA', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
-
-
-names(summary_tbl_wt3) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose ChAdOx1',
-                            'Two doses ChAdOx1', 'One dose BNT162b2', 'Two doses BNT162b2')
-
-summary_tbl_wt3['1', 'Levels'] <- ''
-
-write.csv(summary_tbl_wt3, "./output/final/descriptives/summary_table_weights.csv", row.names = F)
-
-
-
-
-
-
+write.csv(event_summary_tbl_wt, "./output/final/descriptives/event_summary_table_non_carehome_weights.csv", row.names = F)
 
 
 
@@ -649,12 +566,12 @@ dev.off()
 # Provides same idea as 3 - Summary table (weights) but uses counts from 'finalfit' library
 
 # Dependent = vaccination status 
-z_chrt_desc %>%
-  mutate(vacc1 = as.character(vacc1)) %>%
-  summary_factorlist("vacc1", explanatory)
+#z_chrt_desc %>%
+#  mutate(vacc1 = as.character(vacc1)) %>%
+#  summary_factorlist("vacc1", explanatory)
 
 # Dependent = vaccination type 
-z_chrt_desc %>%
-  summary_factorlist(vacc_type, explanatory)
+#z_chrt_desc %>%
+#  summary_factorlist('vacc_type', explanatory)
 
 
