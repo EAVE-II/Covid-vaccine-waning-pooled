@@ -361,7 +361,7 @@ nrow(df_matches)/length(which(z_chrt$vacc==1))
 
 #### 4 - Output ####
 
-saveRDS(df_matches, paste0("./output/df_matches_", z_event_endpoint,".rds"))
+saveRDS(df_matches, paste0("./data/df_matches_", z_event_endpoint,".rds"))
 #saveRDS(df_matches, paste0("./output/df_matches_", z_event_endpoint,"_",a_end,".rds"))
 
 rm(z_merge_ps_list, z_merge_ps_i, z_merge_ps_data, z_merge_month, z_df, z_df_i, z_1, m_j, loop_breaks5, data)

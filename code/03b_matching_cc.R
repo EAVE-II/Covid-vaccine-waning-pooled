@@ -304,7 +304,7 @@ df_cc <- df_cc %>%
 
 
 ##### 8 - Save as rds ####
-saveRDS(df_cc, paste0("./output/df_cc_",
+saveRDS(df_cc, paste0("./data/df_cc_",
                       z_event_endpoint, ".rds"))
 
 rm(z_cc, z_cc_uv, z_cc_vacc, df_cc, z_merge)

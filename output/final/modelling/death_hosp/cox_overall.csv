@@ -1,0 +1,12 @@
+"","vacc_z.yr","est","lwr","upr"
+"1","period15:21",0,0,Inf
+"2","period22:28",0,0,Inf
+"3","period29:35",0,0,Inf
+"4","period36:42",0,0,Inf
+"5","period43+",0,0,Inf
+"6","period0:14:vaccvacc",0.537,0.495,0.581
+"7","period15:21:vaccvacc",0.615,0.512,0.74
+"8","period22:28:vaccvacc",0.425,0.328,0.549
+"9","period29:35:vaccvacc",0.385,0.278,0.534
+"10","period36:42:vaccvacc",0.54,0.368,0.793
+"11","period43+:vaccvacc",0.278,0.188,0.412
