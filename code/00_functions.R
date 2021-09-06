@@ -110,6 +110,7 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
 
 # Table output to be used to plot comparisons between the matched and overall population 
 # (before matching - crude)
+
 event_summary_wt <- function(data){
   
   summary_tbl_list <- list()
@@ -136,12 +137,12 @@ event_summary_wt <- function(data){
   # Combine list together to make dataset
   summary_tbl_wt <- summary_tbl_list %>% 
     reduce(full_join) %>%
-    mutate(Event = c('Hospitalisation after vaccination',
-                     'Hospitalisation >= 14 days post vaccination',
-                     'Death after vaccination',
-                     'Death >= 14 days post vaccination',
-                     'Hospitliation or death after vaccination',
-                     'Hospitaisation or death >= 14 days post vaccination')) 
+    mutate(Event = c('Hospitalisation',
+                     '14 days prior to hospitalisation',
+                     'Death',
+                     '14 days prior to death',
+                     'Hospitliation or death',
+                     '14 days prior to hospitalisation or death')) 
   
   first_row <- formatC(sprintf('%.2f',first_row), format = "f", big.mark = ",", drop0trailing = TRUE)
   
@@ -151,7 +152,7 @@ event_summary_wt <- function(data){
     mutate(Event = 'Person years (thousands)') %>%
     relocate(Event)
   
-  summary_tbl_wt <- bind_rows(first_row, summary_tbl_wt)
+  summary_tbl_wt <- bind_rows(first_row, summary_tbl_wt) %>% relocate(uv, .after = Event)
   
   names(summary_tbl_wt) <- c('Event', 'Unvaccinated', 'First dose ChAdOx1', 
                              'Second dose ChAdOx1', 'First dose BNT162b2', 

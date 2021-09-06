@@ -31,8 +31,8 @@ if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
 df_matches <- readRDS("./data/df_matches_death_hosp.rds")
 
 df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds") %>%
-  select(-c(event, time_to_hosp, time_to_event14, period)) %>%
-  rename(event = event_hosp, time_to_hosp = time_to_hosp_hosp, time_to_event14 =time_to_event14_hosp,
+  select(-c(event, time_to_event, time_to_event14, period)) %>%
+  rename(event = event_hosp, time_to_event = time_to_hosp, time_to_event14 =time_to_event14_hosp,
          period = period_hosp)
 
 z_title <- "COVID-19 hospitalisations"}
@@ -51,8 +51,8 @@ z_title <- "COVID-19 positive infections"
 if (z_event_endpoint =="death_covid") {z_event <- covid_death
 df_matches <- readRDS("./data/df_matches_death_hosp.rds")
 df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds")%>%
-  select(-c(event, time_to_hosp, time_to_event14, period)) %>%
-  rename(event = event_death, time_to_hosp = time_to_hosp_death, time_to_event14 =time_to_event14_death,
+  select(-c(event, time_to_event, time_to_event14, period)) %>%
+  rename(event = event_death, time_to_event = time_to_death, time_to_event14 =time_to_event14_death,
          period = period_death)
 z_title <- "COVID-19 deaths"
 }
@@ -180,7 +180,7 @@ df_cc_desc %>%
 #### 3 - Rates of events using person years ####
 ## Total population
 # Overall
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc,
+z.agg <- pyears(Surv(time_to_event,event) ~ vacc,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 df_res <- z.agg$data
@@ -215,7 +215,7 @@ df_res
 
 ## Vaccine type
 # Overall
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + vacc_type,
+z.agg <- pyears(Surv(time_to_event,event) ~ vacc + vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 df_res <- z.agg$data
@@ -254,12 +254,12 @@ df_res
 
 # Overall time to follow up
 ggplot(df_cc_ps_matches) +
-  geom_density(aes(x=time_to_hosp), adjust=2) +
+  geom_density(aes(x=time_to_event), adjust=2) +
   geom_vline(xintercept = 14, linetype=2)
 
 df_cc_ps_matches %>%
-  summarise(median=median(time_to_hosp),
-            IQR = IQR(time_to_hosp))
+  summarise(median=median(time_to_event),
+            IQR = IQR(time_to_event))
 
 # Labels for vacc type
 vacc_type_label <- c("BNT162b2", "ChAdOx1")
@@ -269,15 +269,15 @@ names(vacc_type_label) <- c("PB", "AZ")
 png(file=paste0("./output/first_dose/final/matching_summary/followup_vacc.png"),
     width =600, height=400)
 ggplot(df_cc_ps_matches) +
-  #geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=3, stat="count")+
-  geom_histogram(aes(x=time_to_hosp, fill=vacc_type), position = "dodge")+
+  #geom_density(aes(x=time_to_event, fill=vacc_type), alpha=0.5, adjust=3, stat="count")+
+  geom_histogram(aes(x=time_to_event, fill=vacc_type), position = "dodge")+
   geom_vline(xintercept = 14, linetype=2) +
   theme_light() +
   scale_fill_manual(values = c(eave_blue, eave_green), labels = vacc_type_label) +
   labs(x="Follow-up (days)", fill="Vaccine type", 
        subtitle = paste0("Follow-up of ", z_title)) +
   annotate("text", x=14.5, y=400000, label = "14 days", hjust=0, size=3.5) +
-  scale_x_continuous(breaks = seq(0,max(df_cc_ps_matches$time_to_hosp), by = 7))+
+  scale_x_continuous(breaks = seq(0,max(df_cc_ps_matches$time_to_event), by = 7))+
   scale_y_continuous(labels = function(x) format(x, scientific = F))
 
 dev.off()
@@ -287,8 +287,8 @@ png(file=paste0("./output/first_dose/final/matching_summary/followup_vacc_age.pn
     width =600, height=800)
 df_cc_ps_matches %>%
   ggplot() +
-  #geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2) +
-  geom_histogram(aes(x=time_to_hosp, fill=vacc_type), position = "dodge")+
+  #geom_density(aes(x=time_to_event, fill=vacc_type), alpha=0.5, adjust=2) +
+  geom_histogram(aes(x=time_to_event, fill=vacc_type), position = "dodge")+
   facet_wrap(~age_grp, ncol=1, scales="free")+
   geom_vline(xintercept = 14, linetype=2) +
   labs(x="Follow-up (days)", fill="Vaccine type",
@@ -306,8 +306,8 @@ png(file=paste0("./output/first_dose/final/matching_summary/followup_vacc_age_ev
     width =800, height=800)
 
 ggplot(df_cc_ps_matches) +
-  #geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=2)+
-  geom_histogram(aes(x=time_to_hosp, fill=vacc_type), position = "dodge")+
+  #geom_density(aes(x=time_to_event, fill=vacc_type), alpha=0.5, adjust=2)+
+  geom_histogram(aes(x=time_to_event, fill=vacc_type), position = "dodge")+
   facet_wrap(age_grp~event, scales="free", ncol=2)+
   geom_vline(xintercept = 14, linetype=2) +
   labs(x="Follow-up (days)", fill="Vaccine type", 
@@ -473,9 +473,6 @@ Learning disability: 1 = Learning disability, 2 = Down's Syndrome
 
 
 dev.off()
-
-
-
 
 
 

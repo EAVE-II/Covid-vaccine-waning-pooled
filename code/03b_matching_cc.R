@@ -183,12 +183,12 @@ if(z_event_endpoint == "positive_test"){
 # Time until event is the event date - vaccination date
 z_cc <- z_cc %>%  
   # Whole time to event
-  mutate(time_to_hosp = as.numeric(event_date-date_vacc_1_vacc)) %>%
+  mutate(time_to_event = as.numeric(event_date-date_vacc_1_vacc)) %>%
   # Time to event starting at 14 days
-  mutate(time_to_event14 = ifelse(time_to_hosp < 14, NA, time_to_hosp)) %>%
+  mutate(time_to_event14 = ifelse(time_to_event < 14, NA, time_to_event)) %>%
   # Put into time periods (currently up to 12 weeks)
-  mutate(period = cut(time_to_hosp, 
-                      breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_hosp, na.rm=T)),
+  mutate(period = cut(time_to_event, 
+                      breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_event, na.rm=T)),
                       labels=c("0:13","14:20","21:27","28:34","35:41", "42:47", "49:55", "56:62", "63:69", 
                                "70:76", "77:83", "84+"))) 
   
@@ -198,7 +198,7 @@ z_cc <- z_cc %>%
 #time on study possible negative for data errors - omit both vacc and matched unvacc
 # Find negative time to events (i.e. event happened before vaccination = error)
 # Might be people vaccinated in hospital - Check
-z_errors <- filter(z_cc, time_to_hosp <0) # n = 6 (n=5 for infections)
+z_errors <- filter(z_cc, time_to_event <0) # n = 6 (n=5 for infections)
 nrow(z_errors)
 
 z_errors_ids <- unique(z_errors$EAVE_LINKNO_vacc)
@@ -281,17 +281,17 @@ df_cc <- df_cc %>%
 
 df_cc <- df_cc %>%  
   # Hosp
-  mutate(time_to_hosp_hosp = as.numeric(event_date_hosp-date_vacc_1_vacc)) %>%
-  mutate(time_to_event14_hosp = ifelse(time_to_hosp_hosp < 14, NA, time_to_hosp_hosp)) %>%
-  mutate(period_hosp = cut(time_to_hosp_hosp, 
-                           breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_hosp_hosp, na.rm=T)),
+  mutate(time_to_hosp = as.numeric(event_date_hosp-date_vacc_1_vacc)) %>%
+  mutate(time_to_event14_hosp = ifelse(time_to_hosp < 14, NA, time_to_hosp)) %>%
+  mutate(period_hosp = cut(time_to_hosp, 
+                           breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_hosp, na.rm=T)),
                            labels=c("0:13","14:20","21:27","28:34","35:41", "42:47", "49:55", "56:62", "63:69", 
                                     "70:76", "77:83", "84+"))) %>%
   # Death
-  mutate(time_to_hosp_death = as.numeric(event_date_death-date_vacc_1_vacc)) %>%
-  mutate(time_to_event14_death = ifelse(time_to_hosp_death < 14, NA, time_to_hosp_death)) %>%
-  mutate(period_death = cut(time_to_hosp_death, 
-                            breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_hosp_death, na.rm=T)),
+  mutate(time_to_death = as.numeric(event_date_death-date_vacc_1_vacc)) %>%
+  mutate(time_to_event14_death = ifelse(time_to_death < 14, NA, time_to_death)) %>%
+  mutate(period_death = cut(time_to_death, 
+                            breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_death, na.rm=T)),
                             labels=c("0:13","14:20","21:27","28:34","35:41", "42:47", "49:55", "56:62", "63:69", 
                                      "70:76", "77:83", "84+")))
 

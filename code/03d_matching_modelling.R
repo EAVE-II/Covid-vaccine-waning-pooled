@@ -34,8 +34,8 @@ if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
 df_matches <- readRDS("./data/df_matches_death_hosp.rds")
 
 df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds") %>%
-  select(-c(event, time_to_hosp, time_to_event14, period)) %>%
-  rename(event = event_hosp, time_to_hosp = time_to_hosp_hosp, time_to_event14 =time_to_event14_hosp,
+  select(-c(event, time_to_event, time_to_event14, period)) %>%
+  rename(event = event_hosp, time_to_event = time_to_hosp, time_to_event14 =time_to_event14_hosp,
          period = period_hosp)
 
 z_title <- "COVID-19 hospitalisations"}
@@ -54,8 +54,8 @@ z_title <- "COVID-19 positive infections"
 if (z_event_endpoint =="death_covid") {z_event <- covid_death
 df_matches <- readRDS("./data/df_matches_death_hosp.rds")
 df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds")%>%
-  select(-c(event, time_to_hosp, time_to_event14, period)) %>%
-  rename(event = event_death, time_to_hosp = time_to_hosp_death, time_to_event14 =time_to_event14_death,
+  select(-c(event, time_to_event, time_to_event14, period)) %>%
+  rename(event = event_death, time_to_event = time_to_death, time_to_event14 =time_to_event14_death,
          period = period_death)
 z_title <- "COVID-19 deaths"
 }
@@ -77,7 +77,7 @@ png(file=paste0("./output/first_dose/final/modelling/", z_event_endpoint, "/cumu
     width = 900, height=400)
 par(mfrow=c(1,2))
 
-z <- survfit(Surv(time_to_hosp, event) ~ vacc, data=df_cc_ps_matches)
+z <- survfit(Surv(time_to_event, event) ~ vacc, data=df_cc_ps_matches)
 plot(z, fun="event", col=c(1,2), conf.int=T)
 title(main=z_title, xlab="days from vaccination",ylab="cumulative risk")
 legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
@@ -103,7 +103,7 @@ png(file=paste0("./output/first_dose/final/modelling/", z_event_endpoint, "/cumu
 par(mfrow=c(2,2))
 
 # PB
-z_pb <- survfit(Surv(time_to_hosp, event) ~ vacc  , data=df_cc_ps_matches, subset = (vacc_type=="PB"))
+z_pb <- survfit(Surv(time_to_event, event) ~ vacc  , data=df_cc_ps_matches, subset = (vacc_type=="PB"))
 plot(z_pb, fun="event", col=c(1,2), conf.int=T)
 title(main=z_title, 
       xlab="days from vaccination",ylab="cumulative risk",
@@ -118,7 +118,7 @@ title(main=z_title,
 legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
 
 # AZ
-z_az <- survfit(Surv(time_to_hosp, event) ~ vacc  , data=df_cc_ps_matches, subset = (vacc_type=="AZ"))
+z_az <- survfit(Surv(time_to_event, event) ~ vacc  , data=df_cc_ps_matches, subset = (vacc_type=="AZ"))
 plot(z_az, fun="event", col=c(1,2), conf.int=T)
 title(main=z_title, 
       xlab="days from vaccination",ylab="cumulative risk",
@@ -141,7 +141,7 @@ png(file=paste0("./output/first_dose/final/modelling/", z_event_endpoint, "/cumu
 par(mfrow=c(3,2))
 ## PB
 # 80+
-z_pb <- survfit(Surv(time_to_hosp, event) ~ vacc  , data=df_cc_ps_matches, 
+z_pb <- survfit(Surv(time_to_event, event) ~ vacc  , data=df_cc_ps_matches, 
                 subset = (vacc_type=="PB") & ageYear >= 80 & ageYear <= 110)
 plot(z_pb, fun="event", col=c(1,2), conf.int=T)
 title(main=z_title, 
@@ -158,7 +158,7 @@ title(main=z_title,
 legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
 
 # 65-79
-z_pb <- survfit(Surv(time_to_hosp, event) ~ vacc  , data=df_cc_ps_matches, 
+z_pb <- survfit(Surv(time_to_event, event) ~ vacc  , data=df_cc_ps_matches, 
                 subset = (vacc_type=="PB") & ageYear >= 65 & ageYear <= 79)
 plot(z_pb, fun="event", col=c(1,2), conf.int=T)
 title(main=z_title, 
@@ -175,7 +175,7 @@ title(main=z_title,
 legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
 
 # <65
-z_pb <- survfit(Surv(time_to_hosp, event) ~ vacc  , data=df_cc_ps_matches, 
+z_pb <- survfit(Surv(time_to_event, event) ~ vacc  , data=df_cc_ps_matches, 
                 subset = (vacc_type=="PB") & ageYear < 65)
 plot(z_pb, fun="event", col=c(1,2), conf.int=T)
 title(main=z_title, 
@@ -200,7 +200,7 @@ png(file=paste0("./output/first_dose/final/modelling/", z_event_endpoint, "/cumu
     width = 900, height=900)
 par(mfrow=c(3,2))
 # 80+
-z_az <- survfit(Surv(time_to_hosp, event) ~ vacc  , data=df_cc_ps_matches, 
+z_az <- survfit(Surv(time_to_event, event) ~ vacc  , data=df_cc_ps_matches, 
                 subset = (vacc_type=="AZ") & ageYear >= 80 & ageYear <= 110)
 plot(z_az, fun="event", col=c(1,2), conf.int=T)
 title(main=z_title, 
@@ -217,7 +217,7 @@ title(main=z_title,
 legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
 
 # 65-79
-z_az <- survfit(Surv(time_to_hosp, event) ~ vacc  , data=df_cc_ps_matches, 
+z_az <- survfit(Surv(time_to_event, event) ~ vacc  , data=df_cc_ps_matches, 
                 subset = (vacc_type=="AZ") & ageYear >= 65 & ageYear <= 79)
 plot(z_az, fun="event", col=c(1,2), conf.int=T)
 title(main=z_title, 
@@ -234,7 +234,7 @@ title(main=z_title,
 legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.8)
 
 # <65
-z_az <- survfit(Surv(time_to_hosp, event) ~ vacc  , data=df_cc_ps_matches, 
+z_az <- survfit(Surv(time_to_event, event) ~ vacc  , data=df_cc_ps_matches, 
                 subset = (vacc_type=="AZ") & ageYear < 65)
 plot(z_az, fun="event", col=c(1,2), conf.int=T)
 title(main=z_title, 
@@ -261,11 +261,11 @@ dev.off()
 # Performs poisson regression using person years of the vacc vs uv at weekly time periods
 
 # Create weekly time periods of time to event
-#z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,14,21,28,35,42, max(df_cc_ps_matches$time_to_hosp) ) )
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(df_cc_ps_matches$time_to_hosp) ) )
+#z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,14,21,28,35,42, max(df_cc_ps_matches$time_to_event) ) )
+z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(df_cc_ps_matches$time_to_event) ) )
 
 # Calculate aggregated person years 
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr,
+z.agg <- pyears(Surv(time_to_event,event) ~ vacc + z.yr,
                 data=df_cc_ps_matches,scale=1,  data.frame=TRUE)
 
 # Extract data
@@ -317,12 +317,12 @@ write.csv(z_glm_output, paste0("./output/first_dose/final/modelling/", z_event_e
 # split by vaccine type
 
 # Create weekly time periods of time to event
-#z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(df_cc_ps_matches$time_to_hosp) ) )
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, max(df_cc_ps_matches$time_to_hosp) ) )
+#z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(df_cc_ps_matches$time_to_event) ) )
+z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, max(df_cc_ps_matches$time_to_event) ) )
 
 
 # Calculate aggregated person years 
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type,
+z.agg <- pyears(Surv(time_to_event,event) ~ vacc + z.yr +vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 
@@ -400,7 +400,7 @@ write.csv(z_glm_vacc_output,
 # split by vaccine type, age (18-64 and 65+) and Sex (female and male)
 
 # Create weekly time periods of time to event
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, max(df_cc_ps_matches$time_to_hosp) ) )
+z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,13,20,27,34,41, 48, 55, 62, 69, max(df_cc_ps_matches$time_to_event) ) )
 
 # Group age into 2 groups to allow for sufficient sample sizes
 df_cc_ps_matches <- df_cc_ps_matches %>%
@@ -436,11 +436,11 @@ write.csv(z_glm_outputs, paste0("./output/first_dose/final/modelling/", z_event_
 
 ##### 5 - GAM - Overall ####
 
-# time_to_hosp =z.yr as days rather than weeks
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1:max(df_cc_ps_matches$time_to_hosp) ) )
+# time_to_event =z.yr as days rather than weeks
+z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1:max(df_cc_ps_matches$time_to_event) ) )
 
 #aggregate for overall
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr,
+z.agg <- pyears(Surv(time_to_event,event) ~ vacc + z.yr,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 
@@ -584,11 +584,11 @@ dev.off()
 
 ### C: GAM
 # Daily z.yr
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_hosp),by=1) ))
+z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_event),by=1) ))
 
-
+bob <- z.agg$data
 # Person years
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type,
+z.agg <- pyears(Surv(time_to_event,event) ~ vacc + z.yr +vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 # Calculate the number of events post 70 days (cut off due to low numbers)
@@ -805,12 +805,12 @@ if(z_vacc_type == "PB"){
   z_vacc_title = "ChAdOx1"
 }
 
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_hosp),by=1) ))
+z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_event),by=1) ))
 
 
 #aggregate for overall
 
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type,
+z.agg <- pyears(Surv(time_to_event,event) ~ vacc + z.yr +vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 z.agg$data %>% mutate(long = as.numeric(z.yr) >70) %>% group_by(vacc, vacc_type, long) %>% summarise(N=sum(event))

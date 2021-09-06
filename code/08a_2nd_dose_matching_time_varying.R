@@ -10,8 +10,8 @@
 #### 0 - Set up ####
 
 # Load in df_cohort and df_vaccinations data 
-df_cohort <- readRDS("./output/df_cohort.rds")
-df_vaccinations <- readRDS("./output/df_vaccinations.rds")
+df_cohort <- readRDS("./data/df_cohort.rds")
+df_vaccinations <- readRDS("./data/df_vaccinations.rds")
 
 ## Options list (for conditions)
 output_list <- list()
@@ -45,7 +45,8 @@ z_title <- "COVID-19 positive test"}
 colnames(z_event)
 
 # Find end date according to last update of end points
-a_end <- as.Date("2021-07-28")
+a_end <- as.Date("2021-06-30")
+
 
 # Filter event data to end date
 z_event <- z_event %>%
@@ -72,7 +73,7 @@ z_chrt <- df_cohort %>%
   filter(!is.na(ageYear)) %>%
   mutate(ur6_2016_name = replace_na(ur6_2016_name, "Unknown"))
 
-# Add in vacc variable
+# Add in vacc variable - for if they were first dose vaccinated
 z_chrt <- z_chrt %>%
   # Create vacc flag if EAVE ID = Vacc EAVE ID
   left_join(select(z_vaccinations, EAVE_LINKNO, date_vacc_1, date_vacc_2),
@@ -185,11 +186,12 @@ for(j in 1:(length(a_months)-1)){
   #### Fully vacc vs no vacc 
   
   ## Adjust cohort to time-period
-  # Only includes those who have not already been vaccinated, 
-  # or have been vaccinated after the start date
+  # Only includes those who were first dose vaccinated before z_strt, so 
+  # they all have the same amount of ti
+  # or have been 2nd dose vaccinated after the start date
   z_chrt_j <- z_chrt_j %>%
     # Filter anyone who has already been vaccinated
-    filter(date_vacc_2 > z_strt | is.na(date_vacc_2)) %>%
+    filter(date_vacc_2 > z_strt | (is.na(date_vacc_2) & !is.na(date_vacc_1) & date_vacc_1 < z-strt)) %>%
     # If they are vaccinated after the time period, replace by 0
     mutate(vacc = if_else(date_vacc_2 > z_end | is.na(date_vacc_2), 0, vacc))%>%
     # If they were vaccinated after the time period, replace the date of vaccination by NA
