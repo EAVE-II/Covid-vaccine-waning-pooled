@@ -1,8 +1,0 @@
-"Event","Unvaccinated","First dose ChAdOx1","Second dose ChAdOx1","First dose BNT162b2","Second dose BNT162b2"
-"Person years (thousands)"," 340.22","  92.29"," 167.63"," 108.92","1365.72"
-"Hospitalisation after vaccination","1,381 (4.06)","224 (2.43)","441 (2.63)","57 (0.52)","9,400 (6.88)"
-"Hospitalisation >= 14 days post vaccination","947 (2.78)","95 (1.03)","292 (1.74)","28 (0.26)","10,141 (7.43)"
-"Death after vaccination","371 (1.09)","21 (0.23)","179 (1.07)","10 (0.09)","2,730 (2.00)"
-"Death >= 14 days post vaccination","316 (0.93)","17 (0.18)","159 (0.95)","7 (0.06)","2,812 (2.06)"
-"Hospitliation or death after vaccination","1,426 (4.19)","226 (2.45)","545 (3.25)","62 (0.57)","10,284 (7.53)"
-"Hospitaisation or death >= 14 days post vaccination","981 (2.88)","96 (1.04)","386 (2.30)","31 (0.28)","11,049 (8.09)"

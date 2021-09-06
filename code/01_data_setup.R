@@ -20,7 +20,7 @@ Location <- "/conf/"  # Server
 a_begin <- as.Date("2020-12-08")
 
 # Cohort end date - 30th June 2021 (to keep consistent across the UK nations)
-a_end <- as.Date("2021-05-30")
+a_end <- as.Date("2021-06-30")
 
 ##### 1 - Baseline characteristic data (df_cohort)  ####
 
@@ -327,12 +327,12 @@ nrow(df_cohort) == length(unique(df_cohort$EAVE_LINKNO))
 
 
 
-##### 7 - Save to output folder ####
+##### 7 - Save to data folder ####
 # Save df_cohort
-saveRDS(df_cohort, paste0("./output/df_cohort.rds"))
+saveRDS(df_cohort, paste0("./data/df_cohort.rds"))
 
 # Save df_vaccinations
-saveRDS(df_vaccinations, paste0("./output/df_vaccinations.rds"))
+saveRDS(df_vaccinations, paste0("./data/df_vaccinations.rds"))
 
 
 

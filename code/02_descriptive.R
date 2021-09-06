@@ -27,8 +27,8 @@ z_event_endpoint <- "death_hosp" # = death/hospitalisation
 # z_event_endpoint <- "covid_death"
 
 # Load in df_cohort and df_vaccinations data 
-df_cohort <- readRDS("./output/df_cohort.rds")
-df_vaccinations <- readRDS("./output/df_vaccinations.rds")
+df_cohort <- readRDS("./data/df_cohort.rds")
+df_vaccinations <- readRDS("./data/df_vaccinations.rds")
 
 # Assign z_event to outcome of interest and assign z_test_event to number of days to
 # add to specimen data if event time is missing
@@ -47,7 +47,7 @@ z_title <- "COVID-19 hospitalisations and deaths"}
 if (z_event_endpoint =="positive_test") {z_event <- positive_test}
 
 # Find end date according to admission date
-a_end <- as.Date("2021-05-30")
+a_end <- as.Date("2021-06-30")
 
 # Filter event data to end date
 z_event <- z_event %>%
@@ -222,8 +222,8 @@ prop.table(table(z_chrt_desc$prev_positive_status, z_chrt_desc$vacc1), 2)
 z_chrt_desc <- z_chrt_desc %>%
   mutate(Total = "Total")
 
-### Output dataset
-saveRDS(z_chrt_desc, paste0("./output/z_chrt_desc.rds"))
+### Save dataset
+saveRDS(z_chrt_desc, paste0("./data/z_chrt_desc.rds"))
 
 
 
@@ -291,12 +291,12 @@ summary_tbl_wt2['1', 'Levels'] <- ''
 
 # Combine and save as csv
 #summary_tbl_wt <- left_join(summary_tbl_wt1, summary_tbl_wt2)
-write.csv(summary_tbl_wt2, "./output/final/descriptives/summary_table_weights.csv", row.names = F)
+write.csv(summary_tbl_wt2, "./output/first_dose/final/descriptives/summary_table_weights.csv", row.names = F)
 
 # Event counts and rates table
 event_summary_tbl_wt <- event_summary_wt(z_chrt_desc)
 
-write.csv(event_summary_tbl_wt, "./output/final/descriptives/event_summary_table_weights.csv", row.names = F)
+write.csv(event_summary_tbl_wt, "./output/first_dose/final/descriptives/event_summary_table_weights.csv", row.names = F)
 
 
 ## Non-elderly care home population summary tables
@@ -318,12 +318,12 @@ names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dos
 summary_tbl_wt2['1', 'Levels'] <- ''
 # Combine and save
 #summary_tbl_wt <- left_join(summary_tbl_wt1, summary_tbl_wt2)
-write.csv(summary_tbl_wt2, "./output/final/descriptives/summary_table_non_carehome_weights.csv", row.names=F)
+write.csv(summary_tbl_wt2, "./output/first_dose/final/descriptives/summary_table_non_carehome_weights.csv", row.names=F)
 
 # Event counts and rates table
 event_summary_tbl_wt <- event_summary_wt(filter(z_chrt_desc, care_home_elderly == 0))
 
-write.csv(event_summary_tbl_wt, "./output/final/descriptives/event_summary_table_non_carehome_weights.csv", row.names = F)
+write.csv(event_summary_tbl_wt, "./output/first_dose/final/descriptives/event_summary_table_non_carehome_weights.csv", row.names = F)
 
 
 
@@ -340,7 +340,7 @@ names(vacc_type_label) <- c("PB", "AZ")
 
 
 # Overall vaccine uptake
-png(file=paste0("./output/final/descriptives/vacc_uptake.png"),
+png(file=paste0("./output/first_dose/final/descriptives/vacc_uptake.png"),
     width = 800, height=400)
 z_chrt_desc %>%
 ggplot() +
@@ -357,7 +357,7 @@ dev.off()
 
 
 # Vaccine uptake by age group
-png(file=paste0("./output/final/descriptives/vacc_uptake_age.png"),
+png(file=paste0("./output/first_dose/final/descriptives/vacc_uptake_age.png"),
     width = 800, height=800)
 ggplot(z_chrt_desc) +
   geom_histogram(aes(x=date_vacc_1, fill=vacc_type), position="dodge", binwidth=2) +
@@ -432,7 +432,7 @@ p4 <- ggplot(z_chrt_desc) +
   xlim(a_begin, a_end)
 
 
-png(file=paste0("./output/final/descriptives/events_age.png"),
+png(file=paste0("./output/first_dose/final/descriptives/events_age.png"),
     width = 1000, height=300)
 lemon::grid_arrange_shared_legend(p1, p2, p3, ncol = 3)
 dev.off()
@@ -474,7 +474,7 @@ n2/n
 vacc_type_label <- c("BNT162b2", "ChAdOx1")
 names(vacc_type_label) <- c("PB", "AZ")
 
-png(file=paste0("./output/final/descriptives/vacc_uptake_nonch.png"),
+png(file=paste0("./output/first_dose/final/descriptives/vacc_uptake_nonch.png"),
     width = 800, height=400)
 z_chrt_desc %>%
   filter(care_home_elderly ==0) %>%
@@ -492,7 +492,7 @@ dev.off()
 
 
 # Vaccinations over time by age
-png(file=paste0("./output/final/descriptives/vacc_uptake_age_nonch.png"),
+png(file=paste0("./output/first_dose/final/descriptives/vacc_uptake_age_nonch.png"),
     width = 800, height=800)
 z_chrt_desc %>%
   filter(care_home_elderly ==0) %>%
@@ -552,7 +552,7 @@ p3 <- z_chrt_desc %>%
        caption = "Excluding elderly care home residents")
 
 # save
-png(file=paste0("./output/final/descriptives/events_age_nonch.png"),
+png(file=paste0("./output/first_dose/final/descriptives/events_age_nonch.png"),
     width = 1000, height=300)
 lemon::grid_arrange_shared_legend(p1, p2, p3, ncol = 3)
 dev.off()

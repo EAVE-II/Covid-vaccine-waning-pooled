@@ -50,7 +50,7 @@ daily_gam_vacc <- daily_gam_vacc %>%
 daily_gam_output <- bind_rows(daily_gam_all, daily_gam_vacc) %>%
   filter(z.yr <= 90)
 
-write.csv(daily_gam_output, paste0("./output/meta-analysis/tbl_gam_", z_event_endpoint, ".csv"),
+write.csv(daily_gam_output, paste0("./output/first_dose/meta-analysis/tbl_gam_", z_event_endpoint, ".csv"),
           row.names = F)
 
 
@@ -106,7 +106,7 @@ daily_gam_output_age <- GAM_tbl_var("age_grp")%>%
 #daily_gam_output_agesex <- bind_rows(daily_gam_output_sex, daily_gam_output_age)
 
 # Output
-write.csv(daily_gam_output_age, paste0("./output/meta-analysis/tbl_gam_age_", z_event_endpoint, ".csv"),
+write.csv(daily_gam_output_age, paste0("./output/first_dose/meta-analysis/tbl_gam_age_", z_event_endpoint, ".csv"),
           row.names = F)
 
 

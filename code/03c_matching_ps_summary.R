@@ -28,9 +28,9 @@ z_event_endpoint <- "death_hosp"
 
 ### Load in data based on endpoint
 if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
-df_matches <- readRDS("./output/df_matches_death_hosp.rds")
+df_matches <- readRDS("./data/df_matches_death_hosp.rds")
 
-df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds") %>%
+df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds") %>%
   select(-c(event, time_to_hosp, time_to_event14, period)) %>%
   rename(event = event_hosp, time_to_hosp = time_to_hosp_hosp, time_to_event14 =time_to_event14_hosp,
          period = period_hosp)
@@ -38,19 +38,19 @@ df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds") %>%
 z_title <- "COVID-19 hospitalisations"}
 
 if (z_event_endpoint =="death_hosp") {z_event <- covid_hosp_death
-df_matches <- readRDS("./output/df_matches_death_hosp.rds")
-df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds")
+df_matches <- readRDS("./data/df_matches_death_hosp.rds")
+df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds")
 z_title <- "COVID-19 hospitalisations or deaths"
 }
 
 if (z_event_endpoint =="positive_test") {z_event <- positive_test
-df_cc_ps_matches <- readRDS("./output/df_cc_positive_test.rds")
+df_cc_ps_matches <- readRDS("./data/df_cc_positive_test.rds")
 z_title <- "COVID-19 positive infections"
 }
 
 if (z_event_endpoint =="death_covid") {z_event <- covid_death
-df_matches <- readRDS("./output/df_matches_death_hosp.rds")
-df_cc_ps_matches <- readRDS("./output/df_cc_death_hosp.rds")%>%
+df_matches <- readRDS("./data/df_matches_death_hosp.rds")
+df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds")%>%
   select(-c(event, time_to_hosp, time_to_event14, period)) %>%
   rename(event = event_death, time_to_hosp = time_to_hosp_death, time_to_event14 =time_to_event14_death,
          period = period_death)
@@ -117,7 +117,7 @@ tbl4_tot <- df_cc_desc %>%
   summary_factorlist(dependent, explanatory, p = F)
 
 
-write.csv(tbl4_tot, "./output/final/matching_summary/tbl4_tot.csv")
+write.csv(tbl4_tot, "./output/first_dose/final/matching_summary/tbl4_tot.csv")
 
 
 ## Vaccination type
@@ -128,7 +128,7 @@ tbl4_az <- df_cc_desc %>%
   rename(uv_az = uv, vacc_az = vacc) 
 head(tbl4_az)
 
-write.csv(tbl4_az, "./output/final/matching_summary/tbl4_az.csv")
+write.csv(tbl4_az, "./output/first_dose/final/matching_summary/tbl4_az.csv")
 
 
 # PB
@@ -138,8 +138,13 @@ tbl4_pb <- df_cc_desc %>%
   rename(uv_pb = uv, vacc_pb = vacc)
 head(tbl4_pb)
 
-write.csv(tbl4_pb, "./output/final/matching_summary/tbl4_pb.csv")
+write.csv(tbl4_pb, "./output/first_dose/final/matching_summary/tbl4_pb.csv")
 
+# Bind tables together
+tbl4 <- bind_cols(tbl4_tot, select(tbl4_az, uv_az, vacc_az))
+tbl4 <- bind_cols(tbl4, select(tbl4_pb, uv_pb, vacc_pb))
+
+write.csv(tbl4, "./output/first_dose/final/matching_summary/tbl4.csv")
 
 ## Total
 df_cc_desc %>%
@@ -261,7 +266,7 @@ vacc_type_label <- c("BNT162b2", "ChAdOx1")
 names(vacc_type_label) <- c("PB", "AZ")
 
 # Split by vaccine
-png(file=paste0("./output/final/matching_summary/followup_vacc.png"),
+png(file=paste0("./output/first_dose/final/matching_summary/followup_vacc.png"),
     width =600, height=400)
 ggplot(df_cc_ps_matches) +
   #geom_density(aes(x=time_to_hosp, fill=vacc_type), alpha=0.5, adjust=3, stat="count")+
@@ -278,7 +283,7 @@ ggplot(df_cc_ps_matches) +
 dev.off()
 
 # Split by age group and vaccine 
-png(file=paste0("./output/final/matching_summary/followup_vacc_age.png"),
+png(file=paste0("./output/first_dose/final/matching_summary/followup_vacc_age.png"),
     width =600, height=800)
 df_cc_ps_matches %>%
   ggplot() +
@@ -297,7 +302,7 @@ dev.off()
 
 
 # Age, event and vaccine
-png(file=paste0("./output/final/matching_summary/followup_vacc_age_event.png"),
+png(file=paste0("./output/first_dose/final/matching_summary/followup_vacc_age_event.png"),
     width =800, height=800)
 
 ggplot(df_cc_ps_matches) +
@@ -383,11 +388,11 @@ cb_both <- full_join(cb_pb, cb_az) %>%
 cb_both
 
 # Save
-write.csv(cb_both, "./output/final/matching_summary/covariate_balance_all.csv")
+write.csv(cb_both, "./output/first_dose/final/matching_summary/covariate_balance_all.csv")
 
 
 # Plot
-png(file=paste0("./output/final/matching_summary/covariate_balance.png"),
+png(file=paste0("./output/first_dose/final/matching_summary/covariate_balance.png"),
     width =800, height=600)
 
 ggplot(cb_both, aes(x=smd, y= label, shape = data, colour = data), size=3) +
@@ -441,10 +446,10 @@ cb_both <- full_join(cb_pb, cb_az) %>%
 
 
 # Save
-write.csv(cb_both, "./output/final/matching_summary/covariate_balance_rg.csv")
+write.csv(cb_both, "./output/first_dose/final/matching_summary/covariate_balance_rg.csv")
 
 # Plot
-png(file=paste0("./output/final/matching_summary/covariate_balance_rg.png"),
+png(file=paste0("./output/first_dose/final/matching_summary/covariate_balance_rg.png"),
     width =800, height=600)
 
 ggplot(cb_both, aes(x=smd, y= label, shape = data, colour = data), size=3) +
