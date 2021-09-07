@@ -18,17 +18,17 @@ z_event_endpoint <- "death_hosp"
 
 ### Load in data based on endpoint
 if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
-z_merge <- readRDS("./output/df_matches_death_hosp.rds")
+z_merge <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
 }
 if (z_event_endpoint =="death_hosp") {z_event <- covid_hosp_death
-z_merge <- readRDS("./output/df_matches_death_hosp.rds")
+z_merge <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
 }
 if (z_event_endpoint =="positive_test") {z_event <- positive_test
-z_merge <- readRDS("./output/df_matches_death_hosp.rds")
+z_merge <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
 
 }
 if (z_event_endpoint =="death_covid") {z_event <- covid_death
-z_merge <- readRDS("./output/df_matches_death_hosp.rds")
+z_merge <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
 }
 
 
@@ -42,48 +42,45 @@ z_vaccinations <- filter(df_vaccinations, date_vacc_1 <= a_end) %>%
 ##### 1 - Separate cases and controls ####
 
 # Cases
-z_cc_vacc <- z_merge %>% 
-  dplyr::select(EAVE_LINKNO_vacc, date_vacc_1_vacc, date_vacc_1_uv, prop_score_vacc, admission_date_vacc, admission_date_uv) %>% 
-  mutate(EAVE_LINKNO = EAVE_LINKNO_vacc) %>% 
-  relocate(EAVE_LINKNO) %>%
-  rename(prop_score=prop_score_vacc)
-
+z_cc_v2 <- z_merge %>% 
+  dplyr::select(EAVE_LINKNO_v2, vacc_type, date_vacc_1, date_vacc_2_v1, date_vacc_2_v2, ageYear, Council,
+                 admission_date_v1, admission_date_v2) %>% 
+  mutate(EAVE_LINKNO = EAVE_LINKNO_v2) %>% 
+  relocate(EAVE_LINKNO) 
 
 # Controls
-z_cc_uv <- z_merge %>% 
-  dplyr::select(EAVE_LINKNO_uv, EAVE_LINKNO_vacc, date_vacc_1_vacc, 
-                date_vacc_1_uv, prop_score_uv, admission_date_vacc, admission_date_uv) %>% 
-  dplyr::rename(EAVE_LINKNO = EAVE_LINKNO_uv, prop_score=prop_score_uv) 
-
-
+z_cc_v1 <- z_merge %>% 
+  dplyr::select(EAVE_LINKNO_v1, EAVE_LINKNO_v2, vacc_type, date_vacc_1, date_vacc_2_v1, date_vacc_2_v2, ageYear, Council,
+                admission_date_v1, admission_date_v2) %>% 
+  dplyr::rename(EAVE_LINKNO = EAVE_LINKNO_v1)
 
 ##### 2 - Combine cases and controls together ####
 
 ## Stack vaccinated and unvaccinated on top
-z_cc <- bind_rows(z_cc_vacc, z_cc_uv) %>% 
-  arrange(EAVE_LINKNO_vacc) %>% 
+z_cc <- bind_rows(z_cc_v2, z_cc_v1) %>% 
+  arrange(EAVE_LINKNO_v2) %>% 
   # Create vacc flag if EAVE ID = Vacc EAVE ID
-  mutate(vacc = factor(if_else(EAVE_LINKNO==EAVE_LINKNO_vacc, 1,0), 
-                       levels=c(0,1),labels=c("uv","vacc"))) %>%
+  mutate(vacc = factor(if_else(EAVE_LINKNO==EAVE_LINKNO_v2, 1,0), 
+                       levels=c(0,1),labels=c("v1","v2"))) %>%
   relocate(EAVE_LINKNO)
 
-nrow(z_cc) == nrow(z_cc_vacc) + nrow(z_cc_uv)
+nrow(z_cc) == nrow(z_cc_v2) + nrow(z_cc_v1)
 
 
 
 #### 3 - Eliminate matches with events that are ineligible ####
 # For data flow diagram (run first to get numbers of pairs where at least one had a covid hosp/death on the same day or before vacc exposed)
 z_cc2 <- z_cc %>%
-  filter(admission_date_vacc <= date_vacc_1_vacc | admission_date_uv <= date_vacc_1_vacc) %>%
-  select(-admission_date_vacc, -admission_date_uv) %>%
+  filter(admission_date_v2 <= date_vacc_2_v2 | admission_date_v1 <= date_vacc_2_v2 ) %>%
+  select(-admission_date_v2, -admission_date_v1) %>%
   left_join(select(df_cohort, EAVE_LINKNO, eave_weight))
 
 
 ## Eliminate those with event on the same day or before vaccination date for both pairs (NEW)
 z_cc <- z_cc %>%
-  filter(admission_date_vacc > date_vacc_1_vacc | is.na(admission_date_vacc)) %>%
-  filter(admission_date_uv > date_vacc_1_vacc | is.na(admission_date_uv)) %>%
-  select(-admission_date_vacc, -admission_date_uv)
+  filter(admission_date_v2 > date_vacc_2_v2 | is.na(admission_date_v2)) %>%
+  filter(admission_date_v1 > date_vacc_2_v2 | is.na(admission_date_v1)) %>%
+  select(-admission_date_v2, -admission_date_v1)
 
 
 #sum(z_cc2$eave_weight)
@@ -99,23 +96,11 @@ z_cc <- z_cc %>%
   # Initialise event date with end date
   mutate(event_date = a_end) 
 
-## Censor if unvaccinated becomes vaccinated
+## Censor if control receives second dose
 z_cc <- z_cc %>% 
-  # relocate the follow up to the date the unvaccinated control was vaccinated - Censoring?
-  mutate(event_date = if_else(!is.na(date_vacc_1_uv) & (date_vacc_1_uv < event_date), 
-                              date_vacc_1_uv, event_date))
-
-## Censor if vaccinated receives 2nd dose
-z_cc <- z_cc %>%
-  # If vaccinated person gets 2nd dose - censor
-  left_join(select(df_vaccinations,EAVE_LINKNO, date_vacc_2), 
-            by=c("EAVE_LINKNO_vacc" = "EAVE_LINKNO"), 
-            suffix=c("","_vacc")) %>%
-  # If there is a date for vaccine 2 and it is before the event date and it is after the 1st dose date
-  mutate(event_date = if_else(!is.na(date_vacc_2) & # If vaccinated person has been vaccinated and
-                                (date_vacc_2 < event_date) &  # they are vaccinated before the event date
-                                (date_vacc_2 > date_vacc_1_vacc),  # And the date of vaccination is after the 1st dose
-                              date_vacc_2, event_date)) # Then replace with 2nd dose
+  # relocate the follow up to the date the control was second-dose vaccinated
+  mutate(event_date = if_else(!is.na(date_vacc_2_v1) & (date_vacc_2_v1 < event_date), 
+                              date_vacc_2_v1, event_date))
 
 ## Merge event data
 # Merge in the event date to calculate the event and event date
@@ -143,8 +128,6 @@ z_cc <- z_cc %>%
 
 ## Adjust event flag
 #change the event marker from 1 to 0 for those whose admission_date is greater than the current event_date
-#these are instances where the unvaccinated control is vaccinated before the admission_date
-#and hence censored at the vaccination date
 z_cc <- z_cc %>% 
   mutate(event = if_else(event==1 & event_date < admission_date, 0, event))
 
@@ -157,22 +140,22 @@ if(z_event_endpoint == "positive_test"){
     filter(result == 1) %>%
     select(-result)
   
-  # Filter to only those who did not test positive or tested postive after the vaccination date
+  # Filter to only those who did not test positive or tested postive after second dose vaccination
   z_cc <- z_cc %>% 
     left_join(positive_test_all)  %>%
-    rename(SpecimenDate_uv = SpecimenDate) %>%
-    left_join(positive_test_all, by=c("EAVE_LINKNO_vacc"="EAVE_LINKNO"))%>%
-    rename(SpecimenDate_vacc = SpecimenDate) %>%
-    filter(SpecimenDate_vacc > date_vacc_1_vacc | is.na(SpecimenDate_vacc))
+    rename(SpecimenDate_v1 = SpecimenDate) %>%
+    left_join(positive_test_all, by=c("EAVE_LINKNO_v2"="EAVE_LINKNO"))%>%
+    rename(SpecimenDate_v2 = SpecimenDate) %>%
+    filter(SpecimenDate_v2 > date_vacc_2_v2 | is.na(SpecimenDate_v2))
   
   
   z_id <- z_cc %>%
-    filter(SpecimenDate_uv <= date_vacc_1_vacc) %>%
+    filter(SpecimenDate_v1 <= date_vacc_2_v2) %>%
     pull(EAVE_LINKNO) %>%
     unique()
   
   z_cc <- filter(z_cc, 
-                 !(EAVE_LINKNO_vacc %in% z_id))
+                 !(EAVE_LINKNO_v2 %in% z_id))
   
 }
 
@@ -183,12 +166,12 @@ if(z_event_endpoint == "positive_test"){
 # Time until event is the event date - vaccination date
 z_cc <- z_cc %>%  
   # Whole time to event
-  mutate(time_to_hosp = as.numeric(event_date-date_vacc_1_vacc)) %>%
+  mutate(time_to_event = as.numeric(event_date-date_vacc_1)) %>%
   # Time to event starting at 14 days
-  mutate(time_to_event14 = ifelse(time_to_hosp < 14, NA, time_to_hosp)) %>%
+  mutate(time_to_event14 = ifelse(time_to_event < 14, NA, time_to_event)) %>%
   # Put into time periods (currently up to 12 weeks)
-  mutate(period = cut(time_to_hosp, 
-                      breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_hosp, na.rm=T)),
+  mutate(period = cut(time_to_event, 
+                      breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_event, na.rm=T)),
                       labels=c("0:13","14:20","21:27","28:34","35:41", "42:47", "49:55", "56:62", "63:69", 
                                "70:76", "77:83", "84+"))) 
 
@@ -198,38 +181,28 @@ z_cc <- z_cc %>%
 #time on study possible negative for data errors - omit both vacc and matched unvacc
 # Find negative time to events (i.e. event happened before vaccination = error)
 # Might be people vaccinated in hospital - Check
-z_errors <- filter(z_cc, time_to_hosp <0) # n = 6 (n=5 for infections)
+z_errors <- filter(z_cc, time_to_event <0) # n = 7 
 nrow(z_errors)
 
-z_errors_ids <- unique(z_errors$EAVE_LINKNO_vacc)
+z_errors_ids <- unique(z_errors$EAVE_LINKNO_v2)
 length(z_errors_ids)
 
 # Delete from dataset
 z_cc <- filter(z_cc, 
-               !(EAVE_LINKNO_vacc %in% z_errors_ids))
+               !(EAVE_LINKNO_v2 %in% z_errors_ids))
 
 
 #### 6 - Add in characteristics #####
 #link to vaccination type - link both vaccinated and unvaccinated control so that
 #selection on vacc type can be easily made.
-df_cc <- z_cc %>%
-  left_join(dplyr::select(z_vaccinations,
-                          EAVE_LINKNO, vacc_type), by=c("EAVE_LINKNO_vacc" = "EAVE_LINKNO"),
-            suffix = c("", "_vacc")) %>%
-  left_join(select(df_cohort, 
-                   EAVE_LINKNO, age_gp, ageYear, simd2020_sc_quintile,
-                   n_tests_gp, n_risk_gps, Council, ur6_2016_name), by=c("EAVE_LINKNO" = "EAVE_LINKNO"),
-            suffix = c("", "_vacc"))%>%
+df_cc <- z_cc %>% left_join(select(df_cohort, 
+                   EAVE_LINKNO, age_gp, simd2020_sc_quintile,
+                   n_tests_gp, n_risk_gps, ur6_2016_name), by=c("EAVE_LINKNO" = "EAVE_LINKNO"))%>%
   mutate(age_grp = case_when(ageYear < 65 ~"18-64", 
                              ageYear < 80 ~"65-79",
                              TRUE ~ "80+"))
 
-## Add in information about vaccinated person only
-df_cc <- df_cc %>%
-  #Age
-  left_join(select(df_cohort, EAVE_LINKNO, ageYear),
-            by=c("EAVE_LINKNO_vacc" = "EAVE_LINKNO"), 
-            suffix = c("", "_vacc"))
+
 
 
 #### 7 - Repeat for hospitalisations and deaths separately (only if using composite outcomes) ####
@@ -239,17 +212,9 @@ df_cc <- df_cc %>%
 ## Add in events for hospitalisations and deaths
 df_cc <- df_cc %>% 
   mutate(event_date2 = a_end) %>%
-  # relocate the follow up to the date the unvaccinated control was vaccinated - Censoring?
-  mutate(event_date2 = if_else(!is.na(date_vacc_1_uv) & (date_vacc_1_uv < event_date2), 
-                               date_vacc_1_uv, event_date2))
-
-# If vaccinated person becomes vaccinated then censor for this
-df_cc <- df_cc %>%
-  # If there is a date for vaccine 2 and it is before the event date and it is after the 1st dose date
-  mutate(event_date2 = if_else(!is.na(date_vacc_2) & # If vaccinated person has been vaccinated and
-                                 (date_vacc_2 < event_date2) &  # they are vaccinated before the event date
-                                 (date_vacc_2 > date_vacc_1_vacc),  # And the date of vaccination is after the 1st dose
-                               date_vacc_2, event_date2)) # Then replace with 2nd dose
+  # relocate the follow up to the date the first dose vaccinated control received 2nd dose
+  mutate(event_date2 = if_else(!is.na(date_vacc_2_v1) & (date_vacc_2_v1 < event_date2), 
+                               date_vacc_2_v1, event_date2))
 
 ## Link death data
 #link in any death and modify the event date.  There should not be any events to change as event date <= death date.  
@@ -281,17 +246,17 @@ df_cc <- df_cc %>%
 
 df_cc <- df_cc %>%  
   # Hosp
-  mutate(time_to_hosp_hosp = as.numeric(event_date_hosp-date_vacc_1_vacc)) %>%
-  mutate(time_to_event14_hosp = ifelse(time_to_hosp_hosp < 14, NA, time_to_hosp_hosp)) %>%
-  mutate(period_hosp = cut(time_to_hosp_hosp, 
-                           breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_hosp_hosp, na.rm=T)),
+  mutate(time_to_hosp = as.numeric(event_date_hosp-date_vacc_2_v2)) %>%
+  mutate(time_to_event14_hosp = ifelse(time_to_hosp < 14, NA, time_to_hosp)) %>%
+  mutate(period_hosp = cut(time_to_hosp, 
+                           breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_hosp, na.rm=T)),
                            labels=c("0:13","14:20","21:27","28:34","35:41", "42:47", "49:55", "56:62", "63:69", 
                                     "70:76", "77:83", "84+"))) %>%
   # Death
-  mutate(time_to_hosp_death = as.numeric(event_date_death-date_vacc_1_vacc)) %>%
-  mutate(time_to_event14_death = ifelse(time_to_hosp_death < 14, NA, time_to_hosp_death)) %>%
-  mutate(period_death = cut(time_to_hosp_death, 
-                            breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_hosp_death, na.rm=T)),
+  mutate(time_to_death = as.numeric(event_date_death-date_vacc_2_v2)) %>%
+  mutate(time_to_event14_death = ifelse(time_to_death < 14, NA, time_to_death)) %>%
+  mutate(period_death = cut(time_to_death, 
+                            breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_death, na.rm=T)),
                             labels=c("0:13","14:20","21:27","28:34","35:41", "42:47", "49:55", "56:62", "63:69", 
                                      "70:76", "77:83", "84+")))
 
@@ -304,10 +269,10 @@ df_cc <- df_cc %>%
 
 
 ##### 8 - Save as rds ####
-saveRDS(df_cc, paste0("./data/df_cc_",
+saveRDS(df_cc, paste0("./data/2nd_dose_df_cc_",
                       z_event_endpoint, ".rds"))
 
-rm(z_cc, z_cc_uv, z_cc_vacc, df_cc, z_merge)
+rm(z_cc, z_cc_v1, z_cc_v2, df_cc, z_merge)
 
 
 

@@ -586,7 +586,6 @@ dev.off()
 # Daily z.yr
 z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_event),by=1) ))
 
-bob <- z.agg$data
 # Person years
 z.agg <- pyears(Surv(time_to_event,event) ~ vacc + z.yr +vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
