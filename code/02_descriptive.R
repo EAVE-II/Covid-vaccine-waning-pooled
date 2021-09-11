@@ -83,7 +83,7 @@ z_chrt_desc <- z_chrt_desc %>%
                              vacc_type %in% c("PB", "AZ") ~ 1,
                              TRUE ~ 0)) %>%
   mutate(v1_v2_days = date_vacc_2 - date_vacc_1) %>%
-  mutate(vacc1 = if_else(vacc_type %in% c("PB", "AZ"), 1,0))  %>%
+  mutate(vacc = if_else(vacc_type %in% c("PB", "AZ"), 1,0))  %>%
   mutate(vacc2 = if_else(vacc_type_2 %in% c("PB", "AZ"), 1,0))
 
 # Add column for last vaccine and dose received in cohort time period
@@ -214,8 +214,8 @@ z_chrt_desc <- z_chrt_desc %>%
   mutate(prev_positive_status = as.character(prev_positive_status))
 
 # Quick summaries
-prop.table(table(z_chrt_desc$in_hosp_status, z_chrt_desc$vacc1), 2)
-prop.table(table(z_chrt_desc$prev_positive_status, z_chrt_desc$vacc1), 2)
+prop.table(table(z_chrt_desc$in_hosp_status, z_chrt_desc$vacc), 2)
+prop.table(table(z_chrt_desc$prev_positive_status, z_chrt_desc$vacc), 2)
 
 
 ## Total variable for summaries
@@ -236,7 +236,7 @@ n_tot <- sum(z_chrt_desc$eave_weight)
 n_tot
 
 # No. vacc
-n <- sum(z_chrt_desc$eave_weight[z_chrt_desc$vacc1==1])
+n <- sum(z_chrt_desc$eave_weight[z_chrt_desc$vacc==1])
 n
 n/n_tot
 
@@ -274,7 +274,7 @@ explanatory <- c("Total","Sex", "ageYear", "age_grp", "simd2020_sc_quintile", "u
 summary_tbl_wt1 <- summary_factorlist_wt(z_chrt_desc %>%
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            mutate(care_home_elderly = as.character(care_home_elderly)),
-                                         "vacc1", explanatory = explanatory)
+                                         "vacc", explanatory = explanatory)
 names(summary_tbl_wt1) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose vaccinated')
 
 # Dependent = vaccination type - by dose and brand
@@ -304,7 +304,7 @@ write.csv(event_summary_tbl_wt, "./output/first_dose/final/descriptives/event_su
 summary_tbl_wt1 <- summary_factorlist_wt(z_chrt_desc %>% 
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            filter(care_home_elderly == 0),
-                                         "vacc1", explanatory = explanatory)
+                                         "vacc", explanatory = explanatory)
 # Dependent = vaccination type
 summary_tbl_wt2 <- summary_factorlist_wt(z_chrt_desc %>% 
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
@@ -385,6 +385,21 @@ ggplot(z_chrt_desc) +
   xlim(a_begin, a_end)
 
 
+# 2nd dose vaccine uptake by age group
+png(file=paste0("./output/second_dose/final/descriptives/vacc_uptake_age.png"),
+    width = 800, height=800)
+ggplot(z_chrt_desc) +
+  geom_histogram(aes(x=date_vacc_2, fill=vacc_type), position="dodge", binwidth=2) +
+  theme_light() +
+  scale_fill_manual(values = c(eave_blue, eave_green), labels = vacc_type_label) +
+  scale_color_manual(values = c(eave_blue, eave_green), labels = vacc_type_label) +
+  labs(x="Date of 1st vaccine (2020/21)", fill="Vaccine type",
+       subtitle = paste0("All 1st dose vaccine dates"),
+       caption = paste0(a_begin, " to ", a_end)) +
+  facet_wrap(~ age_grp, ncol=1) +
+  xlim(a_begin, a_end)
+
+dev.off()
 
 
 ## Events
@@ -453,7 +468,7 @@ n_tot <- sum(z_chrt_desc$eave_weight)
 n_tot
 
 # No. vacc
-n <- sum(z_chrt_desc$eave_weight[z_chrt_desc$vacc1==1])
+n <- sum(z_chrt_desc$eave_weight[z_chrt_desc$vacc==1])
 n
 n/n_tot
 
@@ -503,6 +518,43 @@ z_chrt_desc %>%
   scale_color_manual(values = c(eave_blue, eave_green), labels = vacc_type_label) +
   labs(x="Date of 1st vaccine (2020/21)", fill="Vaccine type",
        subtitle = paste0("All 1st dose vaccine dates"),
+       caption = paste0(a_begin, " to ", a_end, "
+                        Excluding elderly care home residents")) +
+  facet_wrap(~ age_grp, ncol=1)
+
+dev.off()
+
+
+# 2nd dose
+png(file=paste0("./output/second_dose/final/descriptives/vacc_uptake_nonch.png"),
+    width = 800, height=400)
+z_chrt_desc %>%
+  filter(care_home_elderly ==0) %>%
+  ggplot() +
+  geom_histogram(aes(x=date_vacc_2, fill=vacc_type), position="dodge", binwidth=2) +
+  theme_light() +
+  scale_fill_manual(values = c(eave_blue, eave_green), labels = vacc_type_label) +
+  scale_color_manual(values = c(eave_blue, eave_green), labels = vacc_type_label) +
+  labs(x="Date of 1st vaccine (2020/21)", fill="Vaccine type",
+       subtitle = paste0("All 2nd dose vaccine dates"),
+       caption = paste0(a_begin, " to ", a_end, "
+                        Excluding elderly care home residents"))
+
+dev.off()
+
+
+# Vaccinations over time by age
+png(file=paste0("./output/second_dose/final/descriptives/vacc_uptake_age_nonch.png"),
+    width = 800, height=800)
+z_chrt_desc %>%
+  filter(care_home_elderly ==0) %>%
+  ggplot() +
+  geom_histogram(aes(x=date_vacc_2, fill=vacc_type), position="dodge", binwidth=2) +
+  theme_light() +
+  scale_fill_manual(values = c(eave_blue, eave_green), labels = vacc_type_label) +
+  scale_color_manual(values = c(eave_blue, eave_green), labels = vacc_type_label) +
+  labs(x="Date of 1st vaccine (2020/21)", fill="Vaccine type",
+       subtitle = paste0("All 2nd dose vaccine dates"),
        caption = paste0(a_begin, " to ", a_end, "
                         Excluding elderly care home residents")) +
   facet_wrap(~ age_grp, ncol=1)
@@ -567,8 +619,8 @@ dev.off()
 
 # Dependent = vaccination status 
 #z_chrt_desc %>%
-#  mutate(vacc1 = as.character(vacc1)) %>%
-#  summary_factorlist("vacc1", explanatory)
+#  mutate(vacc = as.character(vacc)) %>%
+#  summary_factorlist("vacc", explanatory)
 
 # Dependent = vaccination type 
 #z_chrt_desc %>%

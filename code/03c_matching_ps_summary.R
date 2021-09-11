@@ -58,7 +58,7 @@ z_title <- "COVID-19 deaths"
 }
 
 # Find end date according to admission date
-a_end <- as.Date("2021-04-30")
+a_end <- as.Date("2021-06-30")
 
 # Filter event data to end date
 z_event <- z_event %>%
@@ -363,7 +363,7 @@ explanatory <- c("Sex"="Sex", "Age (grouped)" = "age_grp", "Deprivation status" 
 ## PB
 # Overall population (crude)
 cb_pb_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
-                                 mutate(vacc = recode(vacc1, "0" = "uv", "1" = "vacc")),
+                                 mutate(vacc = recode(vacc, "0" = "uv", "1" = "vacc")),
                                explanatory = explanatory, z_vacc_type = "PB")
 # Matched population
 cb_pb <- cov_bal_vacc_fn(data = df_cc_desc,
@@ -372,7 +372,7 @@ cb_pb <- cov_bal_vacc_fn(data = df_cc_desc,
 ## AZ
 # Overall population (crude)
 cb_az_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
-                                 mutate(vacc = recode(vacc1, "0" = "uv", "1" = "vacc")),
+                                 mutate(vacc = recode(vacc, "0" = "uv", "1" = "vacc")),
                                explanatory = explanatory, z_vacc_type = "AZ")
 
 # Matched population
@@ -426,14 +426,14 @@ names(explanatory) <- c("Atrial fibrillation", "Asthma", "Blood cancer", "Heart 
                         "Thrombosis or pulmonary embolus", "Care housing category", "Learning disability or Down's", "Kidney disease")
 ## PB
 cb_pb_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
-                                 mutate(vacc = recode(vacc1, "0" = "uv", "1" = "vacc")),
+                                 mutate(vacc = recode(vacc, "0" = "uv", "1" = "vacc")),
                                explanatory = explanatory, z_vacc_type = "PB")
 cb_pb <- cov_bal_vacc_fn(data = df_cc_desc,
                          explanatory = explanatory, z_vacc_type = "PB")
 
 ## AZ
 cb_az_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
-                                 mutate(vacc = recode(vacc1, "0" = "uv", "1" = "vacc")),
+                                 mutate(vacc = recode(vacc, "0" = "uv", "1" = "vacc")),
                                explanatory = explanatory, z_vacc_type = "AZ")
 cb_az <- cov_bal_vacc_fn(data = df_cc_desc,
                          explanatory = explanatory, z_vacc_type = "AZ")

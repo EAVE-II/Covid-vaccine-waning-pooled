@@ -33,7 +33,7 @@ z_merge <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
 
 
 ## Vaccination data
-# Make anyone vaccinated after the maximum endpoint time unvaccinated
+# Make anyone first dose vaccinated after the maximum endpoint time unvaccinated
 z_vaccinations <- filter(df_vaccinations, date_vacc_1 <= a_end) %>% 
   mutate(vacc_type_2 = if_else(date_vacc_2 > a_end, NA_character_ , vacc_type_2),
          date_vacc_2 = as.Date(ifelse(date_vacc_2 > a_end, NA, date_vacc_2), origin=as.Date("1970-01-01")) )
@@ -65,8 +65,6 @@ z_cc <- bind_rows(z_cc_v2, z_cc_v1) %>%
   relocate(EAVE_LINKNO)
 
 nrow(z_cc) == nrow(z_cc_v2) + nrow(z_cc_v1)
-
-
 
 #### 3 - Eliminate matches with events that are ineligible ####
 # For data flow diagram (run first to get numbers of pairs where at least one had a covid hosp/death on the same day or before vacc exposed)
@@ -116,15 +114,14 @@ z_cc <- z_cc %>%
 
 ## Link death data
 #link in any death and modify the event date.  There should not be any events to change as event date <= death date.  
-z_cc <- z_cc %>% 
-  # Link death data
+z_cc <- z_cc %>%
+  #Link death data
   left_join(any_death %>%
               rename("any_death_date" = "admission_date"), by="EAVE_LINKNO") %>%
-  # Adjust event date if person dies before end date
-  mutate(event_date = if_else(!is.na(any_death_date) & (any_death_date < event_date), 
-                              any_death_date, event_date))%>%  
+  #Adjust event date if person dies before end date
+  mutate(event_date = if_else(!is.na(any_death_date) & (any_death_date < event_date),
+                              any_death_date, event_date))%>%
   dplyr::select(-SpecimenDate)
-
 
 ## Adjust event flag
 #change the event marker from 1 to 0 for those whose admission_date is greater than the current event_date
@@ -160,13 +157,11 @@ if(z_event_endpoint == "positive_test"){
 }
 
 
-
-
 ### Calculate time until event ###
 # Time until event is the event date - vaccination date
 z_cc <- z_cc %>%  
   # Whole time to event
-  mutate(time_to_event = as.numeric(event_date-date_vacc_1)) %>%
+  mutate(time_to_event = as.numeric(event_date-date_vacc_2_v2)) %>%
   # Time to event starting at 14 days
   mutate(time_to_event14 = ifelse(time_to_event < 14, NA, time_to_event)) %>%
   # Put into time periods (currently up to 12 weeks)
@@ -181,7 +176,7 @@ z_cc <- z_cc %>%
 #time on study possible negative for data errors - omit both vacc and matched unvacc
 # Find negative time to events (i.e. event happened before vaccination = error)
 # Might be people vaccinated in hospital - Check
-z_errors <- filter(z_cc, time_to_event <0) # n = 7 
+z_errors <- filter(z_cc, time_to_event <0) # n = 11 
 nrow(z_errors)
 
 z_errors_ids <- unique(z_errors$EAVE_LINKNO_v2)
@@ -193,8 +188,6 @@ z_cc <- filter(z_cc,
 
 
 #### 6 - Add in characteristics #####
-#link to vaccination type - link both vaccinated and unvaccinated control so that
-#selection on vacc type can be easily made.
 df_cc <- z_cc %>% left_join(select(df_cohort, 
                    EAVE_LINKNO, age_gp, simd2020_sc_quintile,
                    n_tests_gp, n_risk_gps, ur6_2016_name), by=c("EAVE_LINKNO" = "EAVE_LINKNO"))%>%
@@ -202,7 +195,12 @@ df_cc <- z_cc %>% left_join(select(df_cohort,
                              ageYear < 80 ~"65-79",
                              TRUE ~ "80+"))
 
-
+## Add in information about 2nd dose vaccinated person only
+df_cc <- df_cc %>%
+  #Age
+  left_join(select(df_cohort, EAVE_LINKNO, ageYear),
+            by=c("EAVE_LINKNO_v2" = "EAVE_LINKNO"), 
+            suffix = c("", "_vacc"))
 
 
 #### 7 - Repeat for hospitalisations and deaths separately (only if using composite outcomes) ####
@@ -218,12 +216,10 @@ df_cc <- df_cc %>%
 
 ## Link death data
 #link in any death and modify the event date.  There should not be any events to change as event date <= death date.  
-df_cc <- df_cc %>% 
-  # Adjust event date if person dies before end date
-  mutate(event_date2 = if_else(!is.na(any_death_date) & (any_death_date < event_date2), 
+df_cc <- df_cc %>%
+  #Adjust event date if person dies before end date
+  mutate(event_date2 = if_else(!is.na(any_death_date) & (any_death_date < event_date2),
                                any_death_date, event_date2))
-
-
 
 ## Merge event data -for hospitalisations and deaths
 
@@ -239,8 +235,6 @@ df_cc <- df_cc %>%
   # Adjust event date if event happens before event date
   mutate(event_date_death = if_else( (event_death==1) & (NRS.Date.Death <= event_date2), 
                                      NRS.Date.Death, event_date2)) 
-
-
 
 ### Calculate time to events
 
@@ -273,7 +267,3 @@ saveRDS(df_cc, paste0("./data/2nd_dose_df_cc_",
                       z_event_endpoint, ".rds"))
 
 rm(z_cc, z_cc_v1, z_cc_v2, df_cc, z_merge)
-
-
-
-

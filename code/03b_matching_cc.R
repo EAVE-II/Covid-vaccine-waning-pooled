@@ -131,15 +131,14 @@ z_cc <- z_cc %>%
 
 ## Link death data
 #link in any death and modify the event date.  There should not be any events to change as event date <= death date.  
-z_cc <- z_cc %>% 
-  # Link death data
-  left_join(any_death %>%
-              rename("any_death_date" = "admission_date"), by="EAVE_LINKNO") %>%
-  # Adjust event date if person dies before end date
-  mutate(event_date = if_else(!is.na(any_death_date) & (any_death_date < event_date), 
-                              any_death_date, event_date))%>%  
-  dplyr::select(-SpecimenDate)
-
+z_cc <- z_cc %>%
+#Link death data
+left_join(any_death %>%
+            rename("any_death_date" = "admission_date"), by="EAVE_LINKNO") %>%
+#Adjust event date if person dies before end date
+mutate(event_date = if_else(!is.na(any_death_date) & (any_death_date < event_date),
+                            any_death_date, event_date))%>%
+dplyr::select(-SpecimenDate)
 
 ## Adjust event flag
 #change the event marker from 1 to 0 for those whose admission_date is greater than the current event_date
@@ -243,22 +242,20 @@ df_cc <- df_cc %>%
   mutate(event_date2 = if_else(!is.na(date_vacc_1_uv) & (date_vacc_1_uv < event_date2), 
                                date_vacc_1_uv, event_date2))
 
-# If vaccinated person becomes vaccinated then censor for this
+# If vaccinated person becomes 2nd dose vaccinated then censor for this
 df_cc <- df_cc %>%
   # If there is a date for vaccine 2 and it is before the event date and it is after the 1st dose date
-  mutate(event_date2 = if_else(!is.na(date_vacc_2) & # If vaccinated person has been vaccinated and
+  mutate(event_date2 = if_else(!is.na(date_vacc_2) & # If vaccinated person has been 2nd dose vaccinated and
                                  (date_vacc_2 < event_date2) &  # they are vaccinated before the event date
                                  (date_vacc_2 > date_vacc_1_vacc),  # And the date of vaccination is after the 1st dose
                                date_vacc_2, event_date2)) # Then replace with 2nd dose
 
 ## Link death data
 #link in any death and modify the event date.  There should not be any events to change as event date <= death date.  
-df_cc <- df_cc %>% 
-  # Adjust event date if person dies before end date
-  mutate(event_date2 = if_else(!is.na(any_death_date) & (any_death_date < event_date2), 
-                               any_death_date, event_date2))
-
-
+df_cc <- df_cc %>%
+#Adjust event date if person dies before end date
+mutate(event_date2 = if_else(!is.na(any_death_date) & (any_death_date < event_date2),
+                             any_death_date, event_date2))
 
 ## Merge event data -for hospitalisations and deaths
 

@@ -274,7 +274,7 @@ df_res <- z.agg$data
 # Calculate rates and prepare for linkage with results
 df_res <- df_res %>% 
   mutate(pyears =sprintf("%.2f",round(pyears/365.25,1))) %>%
-  mutate(Rate = round(event/pyears*1000,0)) %>% 
+  mutate(Rate = round( as.numeric(event)/ as.numeric(pyears)*1000,0)) %>% 
   mutate(vacc_z.yr = paste0("z.yr", z.yr, ":vacc",vacc)) %>%
   select(-n)
 
@@ -302,7 +302,7 @@ z_glm_est
 
 # Combine GLM outputs with person years summary
 z_glm_output <- df_res %>%
-  left_join(z_glm_est) %>%
+  left_join(z_glm_est, by = c('z.yr' = 'vacc_z.yr')) %>%
   select(-vacc_z.yr)
 
 z_glm_output
@@ -522,8 +522,8 @@ dev.off()
 # Was a function but didn't work with saving files automatically
 
 # Select vaccine type
-z_vacc_type <- "PB"
-#z_vacc_type <- "AZ"
+#z_vacc_type <- "PB"
+z_vacc_type <- "AZ"
 
 # Assign vaccine title
 if(z_vacc_type == "PB"){
@@ -634,11 +634,8 @@ X[,!(c_uv | c_vacc)] <- 0
 #set vaccine column to 1 to get the effect
 X[, "vaccvacc"] <- 1
 
-# There shouldn't be offset difference
-#offset difference
-#offset_diff <- log(z_nd[r_uv,"pyears"]) - log(z_nd[r_vacc,"pyears"])
 
-difference <- X %*% coef(z_gam_vacc) #+ offset_diff
+difference <- X %*% coef(z_gam_vacc) 
 
 # Obtain 95% CIs
 se_difference <- sqrt(diag(X %*% vcov(z_gam_vacc, unconditional=TRUE) %*% t(X)))
@@ -796,7 +793,7 @@ dev.off()
 
 ##### 8 - GAMS with different knots (Experimental) #####
 z_vacc_type <- "PB"
-z_vacc_type <- "AZ"
+#z_vacc_type <- "AZ"
 
 if(z_vacc_type == "PB"){
   z_vacc_title = "BNT162b2"

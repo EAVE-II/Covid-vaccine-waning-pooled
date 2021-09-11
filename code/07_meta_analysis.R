@@ -12,6 +12,10 @@ z_event_endpoint <- "death_hosp"
 #z_event_endpoint <- "hosp_covid"
 #z_event_endpoint <- "death_covid"
 
+# This controls the save path
+# dose <- 'first_dose'
+dose <- 'second_dose'
+
 #### 1 - Table of daily follow-up #####
 
 z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_hosp),by=1) ))
@@ -27,7 +31,7 @@ daily_gam_all <- daily_gam_all %>%
   select(-pyears) %>%
   pivot_wider(names_from = vacc, values_from = c("n", "event")) %>%
   mutate(vacc_type = "All") %>%
-  select(vacc_type, z.yr, n_uv, event_uv, n_vacc, event_vacc) 
+  select(6, 1, 2, 4, 3, 5)
 
 head(daily_gam_all)
 
@@ -42,7 +46,7 @@ daily_gam_vacc <- z.agg$data %>%
 daily_gam_vacc <- daily_gam_vacc %>%
   select(-pyears) %>%
   pivot_wider(names_from = vacc, values_from = c("n", "event")) %>%
-  select(vacc_type, z.yr, n_uv, event_uv, n_vacc, event_vacc)
+  select(2, 1, 3, 5, 4, 6)
 
 
 
@@ -50,7 +54,7 @@ daily_gam_vacc <- daily_gam_vacc %>%
 daily_gam_output <- bind_rows(daily_gam_all, daily_gam_vacc) %>%
   filter(z.yr <= 90)
 
-write.csv(daily_gam_output, paste0("./output/first_dose/meta-analysis/tbl_gam_", z_event_endpoint, ".csv"),
+write.csv(daily_gam_output, paste0("./output/", dose, "/meta-analysis/tbl_gam_", z_event_endpoint, ".csv"),
           row.names = F)
 
 
@@ -62,7 +66,6 @@ write.csv(daily_gam_output, paste0("./output/first_dose/meta-analysis/tbl_gam_",
 df_cc_ps_matches <- df_cc_ps_matches %>%
   #mutate(age_grp2 = ifelse(age_grp == "18-64", "18-64", "65+")) %>%
   left_join(select(df_cohort, EAVE_LINKNO, Sex))
-
 
 # Function (if helpful)
 GAM_tbl_var <- function(variable){
@@ -88,7 +91,8 @@ GAM_tbl_var <- function(variable){
   daily_gam_all <- daily_gam_all %>%
     select(-pyears) %>%
     pivot_wider(names_from = vacc, values_from = c("n", "event")) %>%
-    select(vacc_type, !!sym(variable), z.yr, n_uv, event_uv, n_vacc, event_vacc) 
+    select(2, 3, 1, 4, 6, 5, 7 )
+  
   
   daily_gam_all
 
@@ -106,7 +110,7 @@ daily_gam_output_age <- GAM_tbl_var("age_grp")%>%
 #daily_gam_output_agesex <- bind_rows(daily_gam_output_sex, daily_gam_output_age)
 
 # Output
-write.csv(daily_gam_output_age, paste0("./output/first_dose/meta-analysis/tbl_gam_age_", z_event_endpoint, ".csv"),
+write.csv(daily_gam_output_age, paste0("./output/", dose,"/meta-analysis/tbl_gam_age_", z_event_endpoint, ".csv"),
           row.names = F)
 
 

@@ -109,11 +109,12 @@ if (output_list$carehomes == "remove") {
 }
 
 # Total no. vacc
-length(which(z_chrt$vacc==1))
+length(which(z_chrt$vacc2==1))
 
 
 
 #### 2 - Perform time-varying propensity scores ####
+# Skip sections 2 and 3 if not doing propensity score matching.
 # Performs monthly propensity score matching models and excludes those not eligible for matching
 
 # !! WARNING !! - Run time for code takes a long time depending on size of cohort
@@ -362,21 +363,14 @@ df_matches %>%
 nrow(df_matches)/length(which(z_chrt$vacc==1))
 
 
-#### 4 - Output ####
-
-saveRDS(df_matches, paste0("./data/df_matches_", z_event_endpoint,".rds"))
-#saveRDS(df_matches, paste0("./output/df_matches_", z_event_endpoint,"_",a_end,".rds"))
-
-rm(z_merge_ps_list, z_merge_ps_i, z_merge_ps_data, z_merge_month, z_df, z_df_i, z_1, m_j, loop_breaks5, data)
 
 
 
 
 
 
-
-
-####### Exact matching by date of first vaccination, Council area and age.
+####### 4 Exact matching by date of first vaccination, Council area and age.
+# Skip this section if you have already run propensity score matching in 2 and 3.
 
 # Get those who have been 2nd dose vaccinated in the cohort time period
 z_v2 <- filter(z_chrt, date_vacc_2 <= a_end) %>%
@@ -392,9 +386,8 @@ z_v1 <- filter(z_chrt, date_vacc_1 <= a_end) %>%
 df_matches <- z_v2  %>% 
         left_join(z_v1, by=c("date_vacc_1", "vacc_type","Council", "ageYear"))
 
-
+# Remove self-matches
 df_matches <- filter(df_matches, EAVE_LINKNO_v1 != EAVE_LINKNO_v2)
-
 
 # Add in date of death and admission
 df_matches <- df_matches %>% left_join(select(z_event, EAVE_LINKNO, NRS.Date.Death, admission_date),
@@ -440,3 +433,11 @@ repeat_matches <- df_matches %>%
 - nrow(repeat_matches) + sum(repeat_matches$n) 
 
 saveRDS(df_matches, paste0("./data/2nd_dose_df_matches_", z_event_endpoint,".rds"))
+
+
+#### 5 - Output ####
+
+saveRDS(df_matches, paste0("./data/df_matches_", z_event_endpoint,".rds"))
+#saveRDS(df_matches, paste0("./output/df_matches_", z_event_endpoint,"_",a_end,".rds"))
+
+rm(z_merge_ps_list, z_merge_ps_i, z_merge_ps_data, z_merge_month, z_df, z_df_i, z_1, m_j, loop_breaks5, data)
