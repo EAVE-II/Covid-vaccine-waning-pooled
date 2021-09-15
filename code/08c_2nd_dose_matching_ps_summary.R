@@ -66,7 +66,6 @@ z_event <- z_event %>%
   filter(admission_date <= a_end)
 
 
-
 #### 1 - Characteristics of cc cohort ####
 # Adding in characteristic information to cc data
 

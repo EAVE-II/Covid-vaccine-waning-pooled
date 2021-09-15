@@ -6,6 +6,12 @@
 ##              propensity score matching
 ##########################################################
 
+# Colours 
+eave_green <- rgb(54, 176, 136, maxColorValue = 255)
+eave_blue <- rgb(71,93,167, maxColorValue = 255)
+eave_blue2 <- rgb(0,192,209, maxColorValue = 255)
+eave_gold <- rgb(255,192,0, maxColorValue = 255)
+eave_orange <- rgb(244,143,32, maxColorValue = 255)
 
 #### 0 - Set up ####
 
@@ -348,43 +354,31 @@ df_matches <- z_merge_month %>%
   reduce(full_join)
 
 
-##### 3 - Checks ####
-# Unique?
-nrow(df_matches) == length(unique(df_matches$EAVE_LINKNO_vacc))
-
-# Number of matches being used multiple times
-df_matches %>%
-  group_by(EAVE_LINKNO_v1) %>%
-  summarise(n=n()) %>%
-  arrange(desc(n)) %>%
-  head()
-
-# % of matches that have been vaccinated
-nrow(df_matches)/length(which(z_chrt$vacc==1))
 
 
 
 
 
-
-
-
-####### 4 Exact matching by date of first vaccination, Council area and age.
+####### 3 Exact matching by date of first vaccination, Council area and age.
 # Skip this section if you have already run propensity score matching in 2 and 3.
+
+z_chrt <- mutate(z_chrt, age_gp_matching = cut(ageYear, breaks = c(18, 30, 50, 60, 70, max(z_chrt$ageYear)),
+                            include.lowest = TRUE) )
+
 
 # Get those who have been 2nd dose vaccinated in the cohort time period
 z_v2 <- filter(z_chrt, date_vacc_2 <= a_end) %>%
-        select(EAVE_LINKNO_v1, vacc_type, date_vacc_1, date_vacc_2, ageYear, Council) %>%
+        select(EAVE_LINKNO_v1, vacc_type, date_vacc_1, date_vacc_2, age_gp_matching, Council) %>%
         rename(EAVE_LINKNO_v2 = EAVE_LINKNO_v1,
                date_vacc_2_v2 = date_vacc_2)
 
 # Get those who have been 1st dose vaccinated in the cohort time period
 z_v1 <- filter(z_chrt, date_vacc_1 <= a_end) %>%
-  select(EAVE_LINKNO_v1, vacc_type, date_vacc_1, date_vacc_2, ageYear, Council) %>%
+  select(EAVE_LINKNO_v1, vacc_type, date_vacc_1, date_vacc_2, age_gp_matching, Council) %>%
   rename(date_vacc_2_v1 = date_vacc_2)
 
 df_matches <- z_v2  %>% 
-        left_join(z_v1, by=c("date_vacc_1", "vacc_type","Council", "ageYear"))
+        left_join(z_v1, by=c("date_vacc_1", "vacc_type","Council", "age_gp_matching"))
 
 # Remove self-matches
 df_matches <- filter(df_matches, EAVE_LINKNO_v1 != EAVE_LINKNO_v2)
@@ -419,25 +413,47 @@ df_matches <- df_matches  %>%
   filter(!duplicated(EAVE_LINKNO_v2)) %>%  #get one match per vaccinated individuals
   dplyr::select(-random_id)
 
-# Number 2nd dose vaccinated not matched
-nrow(z_v2) - nrow(df_matches)
 
-(nrow(z_v2) - nrow(df_matches))/nrow(z_v2)
+
+##### 4 - Checks ####
 
 # Number of matches being used multiple times
-repeat_matches <- df_matches %>%
+match_multiplicity <- df_matches %>%
   group_by(EAVE_LINKNO_v1) %>%
   summarise(n=n()) %>%
-  arrange(desc(n))
+  arrange(desc(n)) 
 
-- nrow(repeat_matches) + sum(repeat_matches$n) 
+png(file=paste0("./output/second_dose/final/matching_summary/match_multiplicity_histogram.png"))
 
-saveRDS(df_matches, paste0("./data/2nd_dose_df_matches_", z_event_endpoint,".rds"))
+ggplot(match_multiplicity, aes(x=n)) + 
+  geom_histogram(binwidth = 1, fill= eave_green) + 
+  labs(x = "Match multiplicity")
+
+dev.off()
+
+match_multiplicity <- match_multiplicity %>% select(n) %>% table()%>% as.data.frame()
+
+saveRDS(match_multiplicity, "./output/second_dose/final/matching_summary/match_multiplicity_histogram.rds")
+
+
+# Number 2nd dose vaccinated not matched
+n_v2 = nrow(z_v2)
+
+n_matched = nrow(df_matches)
+  
+percent_matched <- n_matches/n_v2 * 100
+
+matching_stats <- data.frame('Second dose vaccinated' =   format(n_v2 , nsmall=1, big.mark=","),
+           'Matched' =  paste0( format(n_matched , nsmall=1, big.mark=",") , ' (', 
+                               round(percent_matched, 1), '%)'), 
+           check.names = FALSE )
+
+write.csv(matching_stats, "./output/second_dose/final/matching_summary/match_stats.csv")
+
 
 
 #### 5 - Output ####
 
-saveRDS(df_matches, paste0("./data/df_matches_", z_event_endpoint,".rds"))
-#saveRDS(df_matches, paste0("./output/df_matches_", z_event_endpoint,"_",a_end,".rds"))
+saveRDS(df_matches, paste0("./data/2nd_dose_df_matches_", z_event_endpoint,".rds"))
 
 rm(z_merge_ps_list, z_merge_ps_i, z_merge_ps_data, z_merge_month, z_df, z_df_i, z_1, m_j, loop_breaks5, data)
