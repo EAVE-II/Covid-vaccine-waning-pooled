@@ -6,6 +6,12 @@
 ##              propensity score matching
 ##########################################################
 
+# Colours 
+eave_green <- rgb(54, 176, 136, maxColorValue = 255)
+eave_blue <- rgb(71,93,167, maxColorValue = 255)
+eave_blue2 <- rgb(0,192,209, maxColorValue = 255)
+eave_gold <- rgb(255,192,0, maxColorValue = 255)
+eave_orange <- rgb(244,143,32, maxColorValue = 255)
 
 #### 0 - Set up ####
 
@@ -343,15 +349,46 @@ df_matches <- z_merge_month %>%
 # Unique?
 nrow(df_matches) == length(unique(df_matches$EAVE_LINKNO_vacc))
 
-# Number of matches being used multiple times
-df_matches %>%
-  group_by(EAVE_LINKNO_uv) %>%
-  summarise(n=n()) %>%
-  arrange(desc(n)) %>%
-  head()
-
 # % of matches that have been vaccinated
 nrow(df_matches)/length(which(z_chrt$vacc==1))
+
+
+# Number of matches being used multiple times
+match_multiplicity <- df_matches %>%
+  group_by(EAVE_LINKNO_uv) %>%
+  summarise(n=n()) %>%
+  arrange(desc(n)) 
+
+png(file=paste0("./output/first_dose/final/matching_summary/match_multiplicity_histogram.png"))
+
+ggplot(match_multiplicity, aes(x=n)) + 
+  geom_histogram(binwidth = 1, fill= eave_green) + 
+  labs(x = "Match multiplicity")
+
+dev.off()
+
+match_multiplicity <- match_multiplicity %>% select(n) %>% table()%>% as.data.frame()
+
+saveRDS(match_multiplicity, "./output/first_dose/final/matching_summary/match_multiplicity_histogram.rds")
+
+
+# Number of vaccinated that get matched
+
+# Get those who have been 1st dose vaccinated in the cohort time period
+z_v1 <- filter(z_chrt, date_vacc_1 <= a_end) 
+
+n_v1 = nrow(z_v1)
+
+n_matches = nrow(df_matches)
+
+percent_matched <- n_matches/n_v1 * 100
+
+matching_stats <- data.frame('First dose vaccinated' =   format(n_v1 , nsmall=1, big.mark=","),
+                             'Matched' =  paste0( format(n_matches , nsmall=1, big.mark=",") , ' (', 
+                                                  round(percent_matched, 1), '%)'), 
+                             check.names = FALSE )
+
+write.csv(matching_stats, "./output/first_dose/final/matching_summary/match_stats.csv")
 
 
 #### 4 - Output ####

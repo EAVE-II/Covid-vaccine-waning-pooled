@@ -155,7 +155,9 @@ z_merge_month <- list()
 # Prints of statuses within the loop as been made to keep track of progress
 
 for(j in 1:(length(a_months)-1)){
-  
+
+  #j = 1
+    
   # Extract start and end date within jth monthly time period
   z_strt <- a_months[j]
   z_end <- a_months[j+1]
@@ -201,7 +203,7 @@ for(j in 1:(length(a_months)-1)){
     # Filter anyone who has already been vaccinated
     filter(date_vacc_2 > z_strt | (is.na(date_vacc_2) & !is.na(date_vacc_1)) ) %>%
     # If they are vaccinated after the time period, replace by 0
-    mutate(vacc2 = if_else(date_vacc_2 > z_end | is.na(date_vacc_2), 0, vacc))%>%
+    mutate(vacc2 = if_else(date_vacc_2 > z_end | is.na(date_vacc_2), 0, vacc2))%>%
     # If they were vaccinated after the time period, replace the date of vaccination by NA
     mutate(date_vacc_2 = ifelse(date_vacc_2 > z_end | is.na(date_vacc_2), NA, date_vacc_2)) %>%
     mutate(date_vacc_2 = as.Date(date_vacc_2, origin=as.Date("1970-01-01")))
@@ -212,7 +214,7 @@ for(j in 1:(length(a_months)-1)){
   # Model 2: Age, sex, SIMD, n tests, n risk groups, council area, UR, 
   #average household age, number of people in household, EAVE II smoking status,
   # BMI, in-hospital status and previous positive status
-  m_j <- glm(vacc ~ age_gp*Sex + simd2020_sc_quintile + n_tests_gp + n_risk_gps +
+  m_j <- glm(vacc2 ~ age_gp*Sex + simd2020_sc_quintile + n_tests_gp + n_risk_gps +
                Council +ur6_2016_name + ave_hh_age + n_hh_gp + EAVE_Smoke + bmi_cat +
                in_hosp_status + prev_positive_status,
              data=z_chrt_j, family=binomial)
@@ -229,34 +231,39 @@ for(j in 1:(length(a_months)-1)){
   
   ### Extract vaccination population only
   z_df <- z_chrt_j %>%
-    filter(!is.na(date_vacc_1)) %>%
-    dplyr::rename(EAVE_LINKNO_vacc = EAVE_LINKNO_v1)
+    filter(!is.na(date_vacc_2)) %>%
+    dplyr::rename(EAVE_LINKNO_v2 = EAVE_LINKNO_v1)
   
   
   ### Prepare vaccination population and entire population for matching
   ## Only keep the info needed (to quicken up process) - prop score (grouped), Council area and age
   # Vaccinated population
   z_df <- z_df %>%
-    select(EAVE_LINKNO_vacc, prop_score, ps_grp, Council, date_vacc_1, ageYear) %>%
+    select(EAVE_LINKNO_v2, prop_score, ps_grp, Council, vacc_type, date_vacc_1, date_vacc_2, ageYear) %>%
     # Link event data
-    left_join(select(z_event, EAVE_LINKNO, admission_date), by = c("EAVE_LINKNO_vacc"= "EAVE_LINKNO")) %>%
-    rename(date_vacc_1_vacc = date_vacc_1, prop_score_vacc = prop_score, admission_date_vacc = admission_date)
+    left_join(select(z_event, EAVE_LINKNO, admission_date), by = c("EAVE_LINKNO_v2"= "EAVE_LINKNO")) %>%
+    rename(date_vacc_1_v2 = date_vacc_1, 
+           date_vacc_2_v2 = date_vacc_2,
+           prop_score_v2 = prop_score, 
+           admission_date_v2 = admission_date)
   
   head(z_df)
   
   # Cohort population - also link vaccine data, event data and death data 
   z_chrt_j <- z_chrt_j %>%
-    select(EAVE_LINKNO_v1,prop_score, ps_grp, Council, date_vacc_1, ageYear) %>%
-    rename(date_vacc_1_uv = date_vacc_1, prop_score_uv=prop_score) %>%
+    select(EAVE_LINKNO_v1,prop_score, ps_grp, Council, vacc_type, date_vacc_1, date_vacc_2, ageYear) %>%
+    rename(date_vacc_1_v1 = date_vacc_1,
+           date_vacc_2_v1 = date_vacc_2,
+           prop_score_v1=prop_score) %>%
     # Link event data
     left_join(z_event %>%
                 select(-SpecimenDate) %>%
-                rename(admission_date_uv = admission_date), 
+                rename(admission_date_v1 = admission_date), 
               by=c("EAVE_LINKNO_v1" = "EAVE_LINKNO")) %>%
     # Link death data
     left_join(any_death %>%
                 select(-SpecimenDate) %>%
-                rename(any_death_date_uv = admission_date), by=c("EAVE_LINKNO_v1" = "EAVE_LINKNO"))
+                rename(any_death_date_v1 = admission_date), by=c("EAVE_LINKNO_v1" = "EAVE_LINKNO"))
   
   head(z_chrt_j)
   
@@ -287,41 +294,33 @@ for(j in 1:(length(a_months)-1)){
     
     # Merge the vaccination cohort with the whole cohort by the matching variables
     z_merge_ps_i <- z_df_i %>% 
-      left_join(z_chrt_j, by=c("ps_grp","Council", "ageYear"))
+      left_join(z_chrt_j, by=c("ps_grp","Council", "ageYear", "vacc_type"))
     
     # Since merging with characteristics, this will assign all study IDs matching on these 
     # characteristics per vaccinated person in z_df (i.e. multiple IDs per vaccinated person)
     
-    ## Vaccinated control
-    # Remove any matches where data of vaccination of control is before vaccination case
-    z_merge_ps_i <- z_merge_ps_i %>% 
-      filter(date_vacc_1_vacc < date_vacc_1_uv | is.na(date_vacc_1_uv))
+    # Remove self-matches
+    z_merge_ps_i <- filter(z_merge_ps_i, EAVE_LINKNO_v1 != EAVE_LINKNO_v2)
     
-    ## Event for control occurs before paired vaccination
-    # If event for potential match was before the vaccinated case was vaccinated 
-    # then these are ineligible for matching
-    # and therefore should be excluded
-    z_merge_ps_i <- z_merge_ps_i %>% 
-      filter(is.na(admission_date_uv) | admission_date_uv > date_vacc_1_vacc)
+    # Keep only rows where the second dose recipient has their second dose before
+    # the potential match
+    z_merge_ps_i <- filter(z_merge_ps_i, date_vacc_2_v1 > date_vacc_2_v2 | is.na(date_vacc_2_v1))
     
-    ## Control death occurs before paired vaccination
-    # If potential unvaccinated match died before the vaccinated case was vaccinated
-    #ineligible for matching
-    # admission_date - date of death
-    z_merge_ps_i <- z_merge_ps_i %>% 
-      filter(is.na(any_death_date_uv) | any_death_date_uv > date_vacc_1_vacc)
+    # Keep only rows where the potential match either doesn't have an event, or the 
+    # event is after the 2nd dose date of the recipient
+    z_merge_ps_i <- filter(z_merge_ps_i, is.na(admission_date_v1) | admission_date_v1 > date_vacc_2_v2)
     
+    # Keep only rows where the potential match either doesn't die, or dies
+    # after the 2nd dose date of the recipient
+    z_merge_ps_i <- filter(z_merge_ps_i, is.na(any_death_date_v1) | any_death_date_v1 > date_vacc_2_v2)
     
-    ## Randomly assign match out of leftovers
-    # Assings a random ID to all rows and arranges from highest to lowest
-    # Once reordered, take a unique row per vaccinated ID
-    set.seed(123)
-    z_merge_ps_i <- z_merge_ps_i %>% 
+    # Assign random IDs, arrange in order of them, and choose the first occurence of EAVE_LINKNO_v2
+    set.seed(456)
+    z_merge_ps_i <- z_merge_ps_i  %>% 
       mutate(random_id = runif(nrow(z_merge_ps_i))) %>% 
       arrange(random_id) %>% #randomly rearrange to make sure that the same controls are not always selected
-      filter(!duplicated(EAVE_LINKNO_vacc)) %>%  #get one match per vaccinated individuals
+      filter(!duplicated(EAVE_LINKNO_v2)) %>%  #get one match per vaccinated individuals
       dplyr::select(-random_id)
-    
     
     #### Assign to list for loop
     z_merge_ps_list[[i]] <- z_merge_ps_i
@@ -359,59 +358,87 @@ df_matches <- z_merge_month %>%
 
 
 
-####### 3 Exact matching by date of first vaccination, Council area and age.
-# Skip this section if you have already run propensity score matching in 2 and 3.
-
-z_chrt <- mutate(z_chrt, age_gp_matching = cut(ageYear, breaks = c(18, 30, 50, 60, 70, max(z_chrt$ageYear)),
-                            include.lowest = TRUE) )
-
-
-# Get those who have been 2nd dose vaccinated in the cohort time period
-z_v2 <- filter(z_chrt, date_vacc_2 <= a_end) %>%
-        select(EAVE_LINKNO_v1, vacc_type, date_vacc_1, date_vacc_2, age_gp_matching, Council) %>%
-        rename(EAVE_LINKNO_v2 = EAVE_LINKNO_v1,
-               date_vacc_2_v2 = date_vacc_2)
-
-# Get those who have been 1st dose vaccinated in the cohort time period
-z_v1 <- filter(z_chrt, date_vacc_1 <= a_end) %>%
-  select(EAVE_LINKNO_v1, vacc_type, date_vacc_1, date_vacc_2, age_gp_matching, Council) %>%
-  rename(date_vacc_2_v1 = date_vacc_2)
-
-df_matches <- z_v2  %>% 
-        left_join(z_v1, by=c("date_vacc_1", "vacc_type","Council", "age_gp_matching"))
-
-# Remove self-matches
-df_matches <- filter(df_matches, EAVE_LINKNO_v1 != EAVE_LINKNO_v2)
-
-# Add in date of death and admission
-df_matches <- df_matches %>% left_join(select(z_event, EAVE_LINKNO, NRS.Date.Death, admission_date),
-                              by = c('EAVE_LINKNO_v1' = 'EAVE_LINKNO'))  %>%
-              rename(NRS.Date.Death_v1 = NRS.Date.Death,
-                    admission_date_v1 = admission_date) %>% 
-              left_join(select(z_event, EAVE_LINKNO, NRS.Date.Death, admission_date),
-                              by = c('EAVE_LINKNO_v2' = 'EAVE_LINKNO')) %>%
-              rename(NRS.Date.Death_v2 = NRS.Date.Death,
-                    admission_date_v2 = admission_date)
-
-# Keep only rows where the second dose recipient has their second dose after
-# the potential match
-df_matches <- filter(df_matches, date_vacc_2_v1 > date_vacc_2_v2 | is.na(date_vacc_2_v1))
-
-# Keep only rows where the potential match either doesn't have an event, or the 
-# event is after the 2nd dose date of the recipient
-df_matches <- filter(df_matches, is.na(admission_date_v1) | admission_date_v1 > date_vacc_2_v2)
-
-# Keep only rows where the potential match either doesn't die, or dies
-# after the 2nd dose date of the recipient
-df_matches <- filter(df_matches, is.na(NRS.Date.Death_v1) | NRS.Date.Death_v1 > date_vacc_2_v2)
-
-# Assign random IDs, arrange in order of them, and choose the first occurence of EAVE_LINKNO_v2
-set.seed(456)
-df_matches <- df_matches  %>% 
-  mutate(random_id = runif(nrow(df_matches))) %>% 
-  arrange(random_id) %>% #randomly rearrange to make sure that the same controls are not always selected
-  filter(!duplicated(EAVE_LINKNO_v2)) %>%  #get one match per vaccinated individuals
-  dplyr::select(-random_id)
+# ####### 3 Exact matching by date of first vaccination, area and age group.
+# # Skip this section if you have already run propensity score matching in 2 and 3.
+# 
+# z_chrt <- mutate(z_chrt, age_gp_matching = cut(ageYear, breaks = c(18, 30, 50, 60, 70, max(z_chrt$ageYear)),
+#                             include.lowest = TRUE) )
+# 
+# 
+# # Get those who have been 2nd dose vaccinated in the cohort time period
+# z_v2 <- filter(z_chrt, date_vacc_2 <= a_end) %>%
+#         select(EAVE_LINKNO_v1, vacc_type, date_vacc_1, date_vacc_2, age_gp_matching, HB) %>%
+#         rename(EAVE_LINKNO_v2 = EAVE_LINKNO_v1,
+#                date_vacc_2_v2 = date_vacc_2)
+# 
+# # Get those who have been 1st dose vaccinated in the cohort time period
+# z_v1 <- filter(z_chrt, date_vacc_1 <= a_end) %>%
+#   select(EAVE_LINKNO_v1, vacc_type, date_vacc_1, date_vacc_2, age_gp_matching, HB) %>%
+#   rename(date_vacc_2_v1 = date_vacc_2)
+# 
+# 
+# # Memory issues if matching is done all in one go, so break up into 5
+# nrows <- 1:nrow(z_v2)
+# loop_breaks5 <- split(nrows, cut(seq_along(nrows),
+#                                  5,
+#                                  labels = FALSE))
+# 
+# # Create list to assign data through loop
+# z_merge_ps_list <- list()
+# 
+# # Begin loop
+# for(i in 1:5){
+#   
+#   # Splitting the data 
+#   z_df_i <- z_v2[loop_breaks5[[i]], ]
+#   
+#   z_merge_ps_i <- z_df_i %>% 
+#     left_join(z_v1, by=c("date_vacc_1", "vacc_type","HB", "age_gp_matching"))
+#   
+#   # Remove self-matches
+#   z_merge_ps_i <- filter(z_merge_ps_i, EAVE_LINKNO_v1 != EAVE_LINKNO_v2)
+#   
+#   # Add in date of death and admission
+#   z_merge_ps_i <- z_merge_ps_i %>% left_join(select(any_death, EAVE_LINKNO, admission_date),
+#                                          by = c('EAVE_LINKNO_v1' = 'EAVE_LINKNO'))  %>%
+#     rename(any_death_date_v1 = any_death_date) %>% 
+#     left_join(select(any_death, EAVE_LINKNO, admission_date),
+#               by = c('EAVE_LINKNO_v2' = 'EAVE_LINKNO')) %>%
+#     rename(any_death_date_v2 = any_death_date)
+#   
+#   # Keep only rows where the second dose recipient has their second dose before
+#   # the potential match
+#   z_merge_ps_i <- filter(z_merge_ps_i, date_vacc_2_v1 > date_vacc_2_v2 | is.na(date_vacc_2_v1))
+#   
+#   # Keep only rows where the potential match either doesn't have an event, or the 
+#   # event is after the 2nd dose date of the recipient
+#   z_merge_ps_i <- filter(z_merge_ps_i, is.na(admission_date_v1) | admission_date_v1 > date_vacc_2_v2)
+#   
+#   # Keep only rows where the potential match either doesn't die, or dies
+#   # after the 2nd dose date of the recipient
+#   z_merge_ps_i <- filter(z_merge_ps_i, is.na(NRS.Date.Death_v1) | NRS.Date.Death_v1 > date_vacc_2_v2)
+#   
+#   # Assign random IDs, arrange in order of them, and choose the first occurence of EAVE_LINKNO_v2
+#   set.seed(456)
+#   z_merge_ps_i <- z_merge_ps_i  %>% 
+#     mutate(random_id = runif(nrow(z_merge_ps_i))) %>% 
+#     arrange(random_id) %>% #randomly rearrange to make sure that the same controls are not always selected
+#     filter(!duplicated(EAVE_LINKNO_v2)) %>%  #get one match per vaccinated individuals
+#     dplyr::select(-random_id)
+#   
+#   
+#   
+#   #### Assign to list for loop
+#   z_merge_ps_list[[i]] <- z_merge_ps_i
+# 
+# }
+# 
+# df_matches <- z_merge_ps_list %>%
+#   reduce(full_join)
+# 
+# 
+# # df_matches <- z_v2  %>% 
+# #         left_join(z_v1, by=c("date_vacc_1", "vacc_type","HB", "age_gp_matching"))
 
 
 
@@ -437,14 +464,16 @@ saveRDS(match_multiplicity, "./output/second_dose/final/matching_summary/match_m
 
 
 # Number 2nd dose vaccinated not matched
+z_v2 <- filter(z_chrt, date_vacc_2 <= a_end) 
+
 n_v2 = nrow(z_v2)
 
-n_matched = nrow(df_matches)
+n_matches = nrow(df_matches)
   
 percent_matched <- n_matches/n_v2 * 100
 
 matching_stats <- data.frame('Second dose vaccinated' =   format(n_v2 , nsmall=1, big.mark=","),
-           'Matched' =  paste0( format(n_matched , nsmall=1, big.mark=",") , ' (', 
+           'Matched' =  paste0( format(n_matches , nsmall=1, big.mark=",") , ' (', 
                                round(percent_matched, 1), '%)'), 
            check.names = FALSE )
 

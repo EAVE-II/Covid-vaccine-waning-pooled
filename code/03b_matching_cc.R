@@ -99,12 +99,6 @@ z_cc <- z_cc %>%
   # Initialise event date with end date
   mutate(event_date = a_end) 
 
-## Censor if unvaccinated becomes vaccinated
-z_cc <- z_cc %>% 
-  # relocate the follow up to the date the unvaccinated control was vaccinated - Censoring?
-  mutate(event_date = if_else(!is.na(date_vacc_1_uv) & (date_vacc_1_uv < event_date), 
-                              date_vacc_1_uv, event_date))
-
 ## Censor if vaccinated receives 2nd dose
 z_cc <- z_cc %>%
   # If vaccinated person gets 2nd dose - censor
@@ -139,6 +133,17 @@ left_join(any_death %>%
 mutate(event_date = if_else(!is.na(any_death_date) & (any_death_date < event_date),
                             any_death_date, event_date))%>%
 dplyr::select(-SpecimenDate)
+
+# Create a non-vaccine censored time to event. This is for calculating person years
+# lost due to censoring because of control getting vaccinated
+z_cc <- mutate(z_cc, event_date_non_vacc_censored = event_date) %>% 
+  mutate(event_non_vacc_censored = if_else(event==1 & event_date < admission_date, 0, event))
+
+## Censor if unvaccinated becomes vaccinated
+z_cc <- z_cc %>% 
+  # relocate the follow up to the date the unvaccinated control was vaccinated - Censoring?
+  mutate(event_date = if_else(!is.na(date_vacc_1_uv) & (date_vacc_1_uv < event_date), 
+                              date_vacc_1_uv, event_date))
 
 ## Adjust event flag
 #change the event marker from 1 to 0 for those whose admission_date is greater than the current event_date
@@ -185,6 +190,8 @@ z_cc <- z_cc %>%
   mutate(time_to_event = as.numeric(event_date-date_vacc_1_vacc)) %>%
   # Time to event starting at 14 days
   mutate(time_to_event14 = ifelse(time_to_event < 14, NA, time_to_event)) %>%
+  # Time to non-vacine censored event
+  mutate(time_to_event_non_vacc_censored = as.numeric(event_date_non_vacc_censored-date_vacc_1_vacc)) %>% 
   # Put into time periods (currently up to 12 weeks)
   mutate(period = cut(time_to_event, 
                       breaks= c(-1,13,20,27,34,41, 48, 55, 62, 69, 76, 83, max(time_to_event, na.rm=T)),
@@ -298,7 +305,32 @@ df_cc <- df_cc %>%
   mutate(event_hosp = if_else(event_hosp==1 & event_date_hosp < hosp_admission_date, 0, event_hosp)) %>%
   mutate(event_death = if_else(event_death==1 & event_date_death < NRS.Date.Death, 0, event_death))
 
+# Person years and events lost due to vaccine censoring
+#Uncensored
+z.agg <- pyears(Surv(time_to_event,event) ~ total ,
+                data=df_cc %>% mutate(total = 'Censored') , scale=1, data.frame=TRUE)
 
+df_res1 <- z.agg$data
+df_res1 <- df_res1 %>% 
+  mutate(pyears =round(pyears/365.25,1)) %>%
+  select(-n) 
+
+# Censored
+z.agg <- pyears(Surv(time_to_event_non_vacc_censored, event_non_vacc_censored) ~ total,
+                data=df_cc %>% mutate(total = 'Uncensored') , scale=1, data.frame=TRUE)
+
+df_res2 <- z.agg$data
+df_res2 <- df_res2 %>% 
+  mutate(pyears =round(pyears/365.25,1)) %>%
+  select(-n) 
+
+# Combine
+df_res <- bind_rows(df_res1, df_res2) %>%
+  mutate_if(is.numeric, ~formatC(., format = "f", big.mark = ",", drop0trailing = TRUE))
+
+names(df_res) <- c('', 'Person years', 'Events')
+
+write.csv(df_res, "./output/first_dose/final/matching_summary/pyears_lost.csv")
 
 ##### 8 - Save as rds ####
 saveRDS(df_cc, paste0("./data/df_cc_",
