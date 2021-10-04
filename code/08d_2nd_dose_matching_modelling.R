@@ -523,8 +523,8 @@ dev.off()
 # Was a function but didn't work with saving files automatically
 
 # Select vaccine type
-z_vacc_type <- "PB"
-#z_vacc_type <- "AZ"
+#z_vacc_type <- "PB"
+z_vacc_type <- "AZ"
 
 # Assign vaccine title
 if(z_vacc_type == "PB"){
