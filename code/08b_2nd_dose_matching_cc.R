@@ -294,7 +294,7 @@ df_res <- bind_rows(df_res1, df_res2) %>%
 
 names(df_res) <- c('', 'Person years', 'Events')
 
-write.csv(df_res, "./output/second_dose/final/matching_summary/pyears_lost.csv")
+write.csv(df_res, "./output/second_dose_", multiplicity_limit, "/final/matching_summary/pyears_lost.csv")
 
 
 ##### 8 - Save as rds ####

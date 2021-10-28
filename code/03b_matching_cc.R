@@ -92,6 +92,42 @@ nrow(z_cc2)/2
 
 
 
+# 
+# ##  Matched population summary tables
+# 
+# bob <-  z_cc %>% ungroup() %>% select(EAVE_LINKNO, EAVE_LINKNO_vacc, vacc) %>%
+#   left_join( z_chrt_desc %>% select(EAVE_LINKNO_uv, vacc_type), by = c('EAVE_LINKNO_vacc' = 'EAVE_LINKNO_uv') ) %>%
+#   mutate(vacc_type = paste0(vacc, '_',  vacc_type) ) %>%
+#   left_join( z_chrt_desc %>% select(-vacc, -vacc_type), by = c('EAVE_LINKNO' = 'EAVE_LINKNO_uv') )  %>%
+#   mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
+#   mutate(care_home_elderly = as.character(care_home_elderly))
+# 
+# # Dependent = vaccination type - by dose and brand
+# summary_tbl_matched_wt2 <- summary_factorlist( z_cc %>% ungroup() %>% select(EAVE_LINKNO, EAVE_LINKNO_vacc, vacc) %>%
+#                                                     left_join( z_chrt_desc %>% select(EAVE_LINKNO_uv, vacc_type), by = c('EAVE_LINKNO_vacc' = 'EAVE_LINKNO_uv') ) %>%
+#                                                     mutate(vacc_type = paste0(vacc, '_',  vacc_type) ) %>%
+#                                                     left_join( z_chrt_desc %>% select(-vacc, -vacc_type), by = c('EAVE_LINKNO' = 'EAVE_LINKNO_uv') )  %>%
+#                                                     mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
+#                                                     mutate(care_home_elderly = as.character(care_home_elderly)),
+#                                          "vacc_type", explanatory = setdiff(explanatory, 'Total'), add_col_totals = TRUE) %>%
+#                                         select('label', 'levels', 'uv_AZ', 'vacc_AZ',
+#                                                'uv_PB', 'vacc_PB')
+# 
+# names(summary_tbl_matched_wt2) <- c('Characteristic', 'Levels', 'AZ control', 'AZ recipient',
+#                             'PB control', 'PB recipient')
+# 
+# summary_tbl_matched_wt2['1', 'Levels'] <- ''
+# 
+# # Save
+# write.csv(summary_tbl_matched_wt2, paste0("./output/descriptives/first_dose_",
+#                                           multiplicity_limit, "/summary_tbl_matched_wt2.csv"), row.names = F)
+# 
+
+
+
+
+
+
 #### 4 - Create time to event #####
 
 ## Initalise
@@ -200,7 +236,7 @@ z_cc <- z_cc %>%
   
   
 
-##### 5 - Fix data errors #####
+##### 7 - Fix data errors #####
 #time on study possible negative for data errors - omit both vacc and matched unvacc
 # Find negative time to events (i.e. event happened before vaccination = error)
 # Might be people vaccinated in hospital - Check
@@ -330,7 +366,7 @@ df_res <- bind_rows(df_res1, df_res2) %>%
 
 names(df_res) <- c('', 'Person years', 'Events')
 
-write.csv(df_res, "./output/first_dose/final/matching_summary/pyears_lost.csv")
+write.csv(df_res, paste0("./output/first_dose_', multiplicity_limit, '/final/matching_summary/pyears_lost.csv"))
 
 ##### 8 - Save as rds ####
 saveRDS(df_cc, paste0("./data/df_cc_",

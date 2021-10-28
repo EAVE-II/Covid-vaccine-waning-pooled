@@ -8,7 +8,6 @@
 #### Libraries ####
 library("spatstat")
 
-
 #### Summary table using weights ####
 # Creates a table of cohort summaries using weights
 # For categorical variables, the sum of the weights and the % is calculated
@@ -66,15 +65,31 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
       
       
       # Else get sum of weights of each level
-    } else {
+    } else if (length(unique(data %>% pull(!!sym(dependent) ) ) ) ==1) {
       
+      # This is for when there is only one level in the dependent variable
+      summary_tbl_list[[i]]   <- data %>%
+        group_by(!!sym(explanatory[i])) %>%
+        summarise(n = sum(eave_weight)) %>%
+        ungroup() %>%
+        mutate(perc = sprintf("%.1f",round(n/sum(n)*100,1))) %>%
+        mutate_if(is.numeric, ~formatC(round(.,0), format = "f", big.mark = ",", drop0trailing = TRUE)) %>%
+        mutate(n_perc := paste0(n, " (", perc,"%)")) %>%
+        select(-n, -perc) %>%
+        rename("levels"=explanatory[i], !!dependent := n_perc) %>%
+        mutate("characteristic" = explanatory[i]) %>%
+        relocate(characteristic)
+      
+    } else {
+
       summary_tbl_list[[i]] <- data %>%
         group_by(!!sym(explanatory[i]), !!sym(dependent)) %>%
         summarise(n = sum(eave_weight)) %>%
         ungroup() %>%
         group_by(!!sym(dependent)) %>%
         mutate(perc = sprintf("%.1f",round(n/sum(n)*100,1))) %>%
-        mutate(n_perc = paste0(round(n,0), " (", perc,"%)")) %>%
+        mutate_if(is.numeric, ~formatC(round(.,0), format = "f", big.mark = ",", drop0trailing = TRUE)) %>%
+        mutate(n_perc := paste0(n, " (", perc,"%)")) %>%
         select(-n, -perc) %>%
         pivot_wider(names_from = !!sym(dependent), values_from = n_perc) %>%
         rename("levels"=explanatory[i]) %>%
@@ -82,9 +97,6 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
         relocate(characteristic)
       
     }
-    
-    
-    
   }
   
   # Combine list together to make dataset
@@ -93,7 +105,6 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
   
   summary_tbl_wt
 }
-
 
 ##### Table of events and event rates by vaccine category
 # Calculates the standardised mean differences (smd) between the uv and vacc for each of 

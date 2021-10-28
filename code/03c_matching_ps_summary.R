@@ -117,7 +117,7 @@ tbl4_tot <- df_cc_desc %>%
   summary_factorlist(dependent, explanatory, p = F)
 
 
-write.csv(tbl4_tot, "./output/first_dose/final/matching_summary/tbl4_tot.csv")
+write.csv(tbl4_tot, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/tbl4_tot.csv"))
 
 
 ## Vaccination type
@@ -128,7 +128,7 @@ tbl4_az <- df_cc_desc %>%
   rename(uv_az = uv, vacc_az = vacc) 
 head(tbl4_az)
 
-write.csv(tbl4_az, "./output/first_dose/final/matching_summary/tbl4_az.csv")
+write.csv(tbl4_az, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/tbl4_az.csv"))
 
 
 # PB
@@ -138,13 +138,13 @@ tbl4_pb <- df_cc_desc %>%
   rename(uv_pb = uv, vacc_pb = vacc)
 head(tbl4_pb)
 
-write.csv(tbl4_pb, "./output/first_dose/final/matching_summary/tbl4_pb.csv")
+write.csv(tbl4_pb, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/tbl4_pb.csv"))
 
 # Bind tables together
 tbl4 <- bind_cols(tbl4_tot, select(tbl4_az, uv_az, vacc_az))
 tbl4 <- bind_cols(tbl4, select(tbl4_pb, uv_pb, vacc_pb))
 
-write.csv(tbl4, "./output/first_dose/final/matching_summary/tbl4.csv")
+write.csv(tbl4, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/tbl4.csv"))
 
 ## Total
 df_cc_desc %>%
@@ -266,7 +266,7 @@ vacc_type_label <- c("BNT162b2", "ChAdOx1")
 names(vacc_type_label) <- c("PB", "AZ")
 
 # Split by vaccine
-png(file=paste0("./output/first_dose/final/matching_summary/followup_vacc.png"),
+png(file=paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/followup_vacc.png"),
     width =600, height=400)
 ggplot(df_cc_ps_matches) +
   #geom_density(aes(x=time_to_event, fill=vacc_type), alpha=0.5, adjust=3, stat="count")+
@@ -283,7 +283,7 @@ ggplot(df_cc_ps_matches) +
 dev.off()
 
 # Split by age group and vaccine 
-png(file=paste0("./output/first_dose/final/matching_summary/followup_vacc_age.png"),
+png(file=paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/followup_vacc_age.png"),
     width =600, height=800)
 df_cc_ps_matches %>%
   ggplot() +
@@ -302,7 +302,7 @@ dev.off()
 
 
 # Age, event and vaccine
-png(file=paste0("./output/first_dose/final/matching_summary/followup_vacc_age_event.png"),
+png(file=paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/followup_vacc_age_event.png"),
     width =800, height=800)
 
 ggplot(df_cc_ps_matches) +
@@ -388,11 +388,11 @@ cb_both <- full_join(cb_pb, cb_az) %>%
 cb_both
 
 # Save
-write.csv(cb_both, "./output/first_dose/final/matching_summary/covariate_balance_all.csv")
+write.csv(cb_both, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/covariate_balance_all.csv"))
 
 
 # Plot
-png(file=paste0("./output/first_dose/final/matching_summary/covariate_balance.png"),
+png(file=paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/covariate_balance.png"),
     width =800, height=600)
 
 ggplot(cb_both, aes(x=smd, y= label, shape = data, colour = data), size=3) +
@@ -446,10 +446,10 @@ cb_both <- full_join(cb_pb, cb_az) %>%
 
 
 # Save
-write.csv(cb_both, "./output/first_dose/final/matching_summary/covariate_balance_rg.csv")
+write.csv(cb_both, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/covariate_balance_rg.csv"))
 
 # Plot
-png(file=paste0("./output/first_dose/final/matching_summary/covariate_balance_rg.png"),
+png(file=paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/covariate_balance_rg.png"),
     width =800, height=600)
 
 ggplot(cb_both, aes(x=smd, y= label, shape = data, colour = data), size=3) +

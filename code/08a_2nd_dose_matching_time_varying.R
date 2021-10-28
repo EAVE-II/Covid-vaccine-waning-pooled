@@ -15,6 +15,10 @@ eave_orange <- rgb(244,143,32, maxColorValue = 255)
 
 #### 0 - Set up ####
 
+# Upper limit on the number of times anyone is used as a match
+# If you don't want an upper limit, set equal to ''.
+multiplicity_limit <- 1
+
 # Load in df_cohort and df_vaccinations data 
 df_cohort <- readRDS("./data/df_cohort.rds")
 df_vaccinations <- readRDS("./data/df_vaccinations.rds")
@@ -85,9 +89,15 @@ z_chrt <- z_chrt %>%
   # Create vacc flag if EAVE ID = Vacc EAVE ID
   left_join(select(z_vaccinations, EAVE_LINKNO, date_vacc_1, date_vacc_2, vacc_type),
             by=c("EAVE_LINKNO_v1" = "EAVE_LINKNO")) %>%
-  mutate(vacc1=if_else(is.na(date_vacc_1),0,1),
-         vacc2=if_else(is.na(date_vacc_2),0,1)
-         )
+  mutate(vacc = case_when(  EAVE_LINKNO_uv %in% omit_IDs ~ NA_real_,
+                            !is.na(date_vacc_1) ~ 1,
+                            TRUE ~ 0))  %>%
+  mutate(vacc2 = case_when(  EAVE_LINKNO_uv %in% omit_IDs ~ NA_real_,
+                          !is.na(date_vacc_2) ~ 1,
+                          TRUE ~ 0))  
+  # mutate(vacc1=if_else(is.na(date_vacc_1),0,1),
+  #        vacc2=if_else(is.na(date_vacc_2),0,1)
+  #        )
 
 # Add age as individual year (truncated)
 z_chrt <- z_chrt %>% mutate(ageYear = if_else(ageYear >= 100,100, ageYear)) %>% 
@@ -352,8 +362,21 @@ for(j in 1:(length(a_months)-1)){
 df_matches <- z_merge_month %>%
   reduce(full_join)
 
-
-
+if (multiplicity_limit != ''){
+  df_matches_less <- df_matches %>%
+    group_by(EAVE_LINKNO_uv) %>%
+    mutate(match_multiplicity = n()) 
+  
+  df_matches_more <- filter(df_matches_less, match_multiplicity > multiplicity_limit)
+  
+  df_matches_less <- filter(df_matches_less, match_multiplicity <= multiplicity_limit)
+  
+  df_matches_more <- df_matches_more %>%
+    group_by(EAVE_LINKNO_uv) %>%
+    sample_n(multiplicity_limit)
+  
+  df_matches <- bind_rows(df_matches_less, df_matches_more)
+}
 
 
 
@@ -450,7 +473,7 @@ match_multiplicity <- df_matches %>%
   summarise(n=n()) %>%
   arrange(desc(n)) 
 
-png(file=paste0("./output/second_dose/final/matching_summary/match_multiplicity_histogram.png"))
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/match_multiplicity_histogram.png"))
 
 ggplot(match_multiplicity, aes(x=n)) + 
   geom_histogram(binwidth = 1, fill= eave_green) + 
@@ -460,7 +483,7 @@ dev.off()
 
 match_multiplicity <- match_multiplicity %>% select(n) %>% table()%>% as.data.frame()
 
-saveRDS(match_multiplicity, "./output/second_dose/final/matching_summary/match_multiplicity_histogram.rds")
+saveRDS(match_multiplicity, "./output/second_dose_", multiplicity_limit, "/final/matching_summary/match_multiplicity_histogram.rds")
 
 
 # Number 2nd dose vaccinated not matched
@@ -477,7 +500,7 @@ matching_stats <- data.frame('Second dose vaccinated' =   format(n_v2 , nsmall=1
                                round(percent_matched, 1), '%)'), 
            check.names = FALSE )
 
-write.csv(matching_stats, "./output/second_dose/final/matching_summary/match_stats.csv")
+write.csv(matching_stats, paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/match_stats.csv"))
 
 
 

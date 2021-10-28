@@ -79,19 +79,32 @@ z_chrt_desc <- df_cohort %>%
 # Add in vaccination data
 z_chrt_desc <- z_chrt_desc %>%
   left_join(z_vaccinations, by=c("EAVE_LINKNO_uv" = "EAVE_LINKNO")) %>%
+  # Our cohort will be uv, AZ or PB only. Remove moderna
+  filter( vacc_type %in% c('AZ', 'PB', 'UNK') | is.na(vacc_type) ) %>%
+  filter( vacc_type_2 %in% c('AZ', 'PB', 'UNK') | is.na(vacc_type_2) ) %>%
   mutate(dose_no = case_when((vacc_type %in% c("PB", "AZ") & vacc_type_2 %in% c("PB", "AZ")) ~ 2,
                              vacc_type %in% c("PB", "AZ") ~ 1,
+                             flag_incon == 1 ~ NA_real_,
                              TRUE ~ 0)) %>%
   mutate(v1_v2_days = date_vacc_2 - date_vacc_1) %>%
-  mutate(vacc = if_else(vacc_type %in% c("PB", "AZ"), 1,0))  %>%
-  mutate(vacc2 = if_else(vacc_type_2 %in% c("PB", "AZ"), 1,0))
+  mutate(vacc = case_when( vacc_type %in% c("PB", "AZ") ~ 1,
+                           vacc_type == 'UNK' ~ NA_real_,
+                           flag_incon == 1 ~ NA_real_,
+                           TRUE ~ 0))  %>%
+  mutate(vacc2 = case_when( vacc_type_2 %in% c("PB", "AZ") ~ 1,
+                            vacc_type == 'UNK' ~ NA_real_,
+                            flag_incon == 1 ~ NA_real_,
+                            TRUE ~ 0)) 
 
 # Add column for last vaccine and dose received in cohort time period
 z_chrt_desc <- z_chrt_desc %>%
   mutate(vacc_type_comb = case_when(vacc_type_2  == 'AZ' ~ 'AZ_v2',
                                     vacc_type_2  == 'PB' ~ 'PB_v2',
                                     vacc_type  == 'AZ' ~ 'AZ_v1',
-                                    vacc_type  == 'PB' ~ 'PB_v1'))
+                                    vacc_type  == 'PB' ~ 'PB_v1',
+                                    vacc_type == 'UNK' ~ NA_character_,
+                                    flag_incon == 1 ~ NA_character_,
+                                    TRUE ~ 'uv'))
 
 # Link in event data
 z_chrt_desc <- z_chrt_desc %>%
@@ -104,6 +117,7 @@ z_chrt_desc <- z_chrt_desc %>%
                      admission_date >= date_vacc_1 ~ paste0(vacc_type, '_v1')))
 
 # Make event indicators post vaccination and overall for uv
+# Not used?
 z_chrt_desc <- z_chrt_desc %>%
   # For composite outcome
   mutate(event = ifelse(admission_date <= date_vacc_1, "0", "1")) %>%
@@ -274,7 +288,9 @@ explanatory <- c("Total","Sex", "ageYear", "age_grp", "simd2020_sc_quintile", "u
 summary_tbl_wt1 <- summary_factorlist_wt(z_chrt_desc %>%
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            mutate(care_home_elderly = as.character(care_home_elderly)),
-                                         "vacc", explanatory = explanatory)
+                                         "vacc", explanatory = explanatory) %>%
+                                          select('characteristic', 'levels', '0', '1')
+
 names(summary_tbl_wt1) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose vaccinated')
 
 # Dependent = vaccination type - by dose and brand
@@ -282,7 +298,7 @@ summary_tbl_wt2 <- summary_factorlist_wt(z_chrt_desc %>%
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            mutate(care_home_elderly = as.character(care_home_elderly)),
                                          "vacc_type_comb", explanatory = explanatory) %>%
-  select('characteristic', 'levels', 'NA', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+  select('characteristic', 'levels', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
 
 names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose ChAdOx1',
                             'Two doses ChAdOx1', 'One dose BNT162b2', 'Two doses BNT162b2')
@@ -291,12 +307,12 @@ summary_tbl_wt2['1', 'Levels'] <- ''
 
 # Combine and save as csv
 #summary_tbl_wt <- left_join(summary_tbl_wt1, summary_tbl_wt2)
-write.csv(summary_tbl_wt2, "./output/first_dose/final/descriptives/summary_table_weights.csv", row.names = F)
+write.csv(summary_tbl_wt2, "./output/descriptives/summary_table_weights.csv", row.names = F)
 
 # Event counts and rates table
 event_summary_tbl_wt <- event_summary_wt(z_chrt_desc)
 
-write.csv(event_summary_tbl_wt, "./output/first_dose/final/descriptives/event_summary_table_weights.csv", row.names = F)
+write.csv(event_summary_tbl_wt, "./output/descriptives/event_summary_table_weights.csv", row.names = F)
 
 
 ## Non-elderly care home population summary tables
@@ -310,7 +326,7 @@ summary_tbl_wt2 <- summary_factorlist_wt(z_chrt_desc %>%
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            filter(care_home_elderly == 0),
                                          "vacc_type_comb", explanatory = explanatory) %>%
-          select('characteristic', 'levels', 'NA', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+          select('characteristic', 'levels', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
 
 names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose ChAdOx1',
                             'Two doses ChAdOx1', 'One dose BNT162b2', 'Two doses BNT162b2')
@@ -318,12 +334,12 @@ names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dos
 summary_tbl_wt2['1', 'Levels'] <- ''
 # Combine and save
 #summary_tbl_wt <- left_join(summary_tbl_wt1, summary_tbl_wt2)
-write.csv(summary_tbl_wt2, "./output/first_dose/final/descriptives/summary_table_non_carehome_weights.csv", row.names=F)
+write.csv(summary_tbl_wt2, "./output/descriptives/summary_table_non_carehome_weights.csv", row.names=F)
 
 # Event counts and rates table
 event_summary_tbl_wt <- event_summary_wt(filter(z_chrt_desc, care_home_elderly == 0))
 
-write.csv(event_summary_tbl_wt, "./output/first_dose/final/descriptives/event_summary_table_non_carehome_weights.csv", row.names = F)
+write.csv(event_summary_tbl_wt, "./output/descriptives/event_summary_table_non_carehome_weights.csv", row.names = F)
 
 
 
@@ -340,7 +356,7 @@ names(vacc_type_label) <- c("PB", "AZ")
 
 
 # Overall vaccine uptake
-png(file=paste0("./output/first_dose/final/descriptives/vacc_uptake.png"),
+png(file=paste0("./output/descriptives/vacc1_uptake.png"),
     width = 800, height=400)
 z_chrt_desc %>%
 ggplot() +
@@ -357,7 +373,7 @@ dev.off()
 
 
 # Vaccine uptake by age group
-png(file=paste0("./output/first_dose/final/descriptives/vacc_uptake_age.png"),
+png(file=paste0("./output/descriptives/vacc1_uptake_age.png"),
     width = 800, height=800)
 ggplot(z_chrt_desc) +
   geom_histogram(aes(x=date_vacc_1, fill=vacc_type), position="dodge", binwidth=2) +
@@ -374,6 +390,9 @@ dev.off()
 
 
 ## 2nd dose uptake
+
+png(file=paste0("./output/descriptives/vacc2_uptake.png"),
+    width = 800, height=400)
 ggplot(z_chrt_desc) +
   geom_histogram(aes(x=date_vacc_2, fill=vacc_type), position="dodge", binwidth=2) +
   theme_light() +
@@ -384,9 +403,10 @@ ggplot(z_chrt_desc) +
        caption = paste0(a_begin, " to ", a_end)) +
   xlim(a_begin, a_end)
 
+dev.off()
 
 # 2nd dose vaccine uptake by age group
-png(file=paste0("./output/second_dose/final/descriptives/vacc_uptake_age.png"),
+png(file=paste0("./output/descriptives/vacc2_uptake_age.png"),
     width = 800, height=800)
 ggplot(z_chrt_desc) +
   geom_histogram(aes(x=date_vacc_2, fill=vacc_type), position="dodge", binwidth=2) +
@@ -447,7 +467,7 @@ p4 <- ggplot(z_chrt_desc) +
   xlim(a_begin, a_end)
 
 
-png(file=paste0("./output/first_dose/final/descriptives/events_age.png"),
+png(file=paste0("./output/descriptives/events_age.png"),
     width = 1000, height=300)
 lemon::grid_arrange_shared_legend(p1, p2, p3, ncol = 3)
 dev.off()
@@ -489,7 +509,7 @@ n2/n
 vacc_type_label <- c("BNT162b2", "ChAdOx1")
 names(vacc_type_label) <- c("PB", "AZ")
 
-png(file=paste0("./output/first_dose/final/descriptives/vacc_uptake_nonch.png"),
+png(file=paste0("./output/descriptives/vacc1_uptake_nonch.png"),
     width = 800, height=400)
 z_chrt_desc %>%
   filter(care_home_elderly ==0) %>%
@@ -507,7 +527,7 @@ dev.off()
 
 
 # Vaccinations over time by age
-png(file=paste0("./output/first_dose/final/descriptives/vacc_uptake_age_nonch.png"),
+png(file=paste0("./output/descriptives/vacc1_uptake_age_nonch.png"),
     width = 800, height=800)
 z_chrt_desc %>%
   filter(care_home_elderly ==0) %>%
@@ -526,7 +546,7 @@ dev.off()
 
 
 # 2nd dose
-png(file=paste0("./output/second_dose/final/descriptives/vacc_uptake_nonch.png"),
+png(file=paste0("./output/descriptives/vacc2_uptake_nonch.png"),
     width = 800, height=400)
 z_chrt_desc %>%
   filter(care_home_elderly ==0) %>%
@@ -544,7 +564,7 @@ dev.off()
 
 
 # Vaccinations over time by age
-png(file=paste0("./output/second_dose/final/descriptives/vacc_uptake_age_nonch.png"),
+png(file=paste0("./output/descriptives/vacc2_uptake_age_nonch.png"),
     width = 800, height=800)
 z_chrt_desc %>%
   filter(care_home_elderly ==0) %>%
@@ -604,7 +624,7 @@ p3 <- z_chrt_desc %>%
        caption = "Excluding elderly care home residents")
 
 # save
-png(file=paste0("./output/first_dose/final/descriptives/events_age_nonch.png"),
+png(file=paste0("./output/descriptives/events_age_nonch.png"),
     width = 1000, height=300)
 lemon::grid_arrange_shared_legend(p1, p2, p3, ncol = 3)
 dev.off()

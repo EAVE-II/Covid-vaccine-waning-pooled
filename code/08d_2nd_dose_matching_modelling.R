@@ -74,7 +74,7 @@ z_event <- z_event %>%
 
 #### Overall
 
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/cumulative_risks/cumulative_overall.png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/cumulative_risks/cumulative_overall.png"),
     width = 900, height=400)
 par(mfrow=c(1,2))
 
@@ -97,7 +97,7 @@ dev.off()
 
 
 ### By Vaccine
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/cumulative_risks/cumulative_vacc.png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/cumulative_risks/cumulative_vacc.png"),
     width = 900, height=600)
 
 
@@ -136,7 +136,7 @@ legend("topleft",legend=levels(df_cc_ps_matches$vacc), lty=1, col=c(1,2), cex=0.
 dev.off()
 
 #### Vaccine and age
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/cumulative_risks/cumulative_pb_age.png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/cumulative_risks/cumulative_pb_age.png"),
     width = 900, height=900)
 
 par(mfrow=c(3,2))
@@ -197,7 +197,7 @@ dev.off()
 
 
 ## AZ
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/cumulative_risks/cumulative_az_age.png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/cumulative_risks/cumulative_az_age.png"),
     width = 900, height=900)
 par(mfrow=c(3,2))
 # 80+
@@ -309,7 +309,7 @@ z_glm_output <- df_res %>%
 z_glm_output
 
 # Save
-write.csv(z_glm_output, paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/poisson_overall.csv"))
+write.csv(z_glm_output, paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/poisson_overall.csv"))
 
 
 
@@ -390,7 +390,7 @@ z_glm_vacc_output <- df_res %>%
 
 # Save
 write.csv(z_glm_vacc_output, 
-          paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/poisson_vacc.csv"),
+          paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/poisson_vacc.csv"),
           row.names = F)
 
 
@@ -432,7 +432,7 @@ z_glm_outputs <- z_glm_list %>%
 z_glm_outputs
 
 # Save
-write.csv(z_glm_outputs, paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/poisson_vacc_age_sex.csv"))
+write.csv(z_glm_outputs, paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/poisson_vacc_age_sex.csv"))
 
 
 ##### 5 - GAM - Overall ####
@@ -482,7 +482,7 @@ z_pois_pred_rr <- z_pois_pred %>%
 z_pois_pred_rr
 
 # Plot GAMs themselves
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/gam_overall.png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/gam_overall.png"),
     width = 700, height=400)
 
 ggplot(z_pois_pred) +
@@ -501,7 +501,7 @@ dev.off()
 
 
 # Plot GAM RRs
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/gam_overall_rr.png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/gam_overall_rr.png"),
     width = 700, height=400)
 ggplot(z_pois_pred_rr) +
   geom_line(aes(x=as.numeric(z.yr), y=RR), col=eave_blue) +
@@ -576,7 +576,7 @@ p_b <- arrange_ggsurvplots(p_b_list, ncol=1, nrow=4, print=T)
 
 
 # Save
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/plots/cumulative_risks_",z_vacc_type,".png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/plots/cumulative_risks_",z_vacc_type,".png"),
     width = 600, height=900)
 p_b
 dev.off()
@@ -674,7 +674,7 @@ z_rr <- z_rr %>%
 
 
 # Save table
-write.csv(z_rr, paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/poisson_gam_", z_vacc_type, ".csv"))
+write.csv(z_rr, paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/poisson_gam_", z_vacc_type, ".csv"))
 
 ## Waning p-value
 # p-value for quadratic term post 14 days
@@ -739,7 +739,7 @@ if(z_vacc_type == "PB"){
 }
 
 # Plot individual plot
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/plots/gam_RR_",z_vacc_type,".png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/plots/gam_RR_",z_vacc_type,".png"),
     width = 800, height=400)
 
 p_c
@@ -748,7 +748,7 @@ dev.off()
 
 
 ## Plot GAMS together (p_c = AZ and p_c1 = PB)
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/plots/gam_RR_both.png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/plots/gam_RR_both.png"),
     width = 800, height=600)
 
 cowplot::plot_grid(p_c1,p_c, labels = "AUTO", ncol=1)
@@ -775,7 +775,7 @@ p3 <- GAM_rr_var("AZ", "Sex","F")
 p4 <- GAM_rr_var("AZ", "Sex","M")
 
 
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/plots/gam_RR_agesex_AZ.png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/plots/gam_RR_agesex_AZ.png"),
     width = 1000, height=600)
 
 plot_grid(p_title, plot_grid(p1, p2, p3, p4, labels = "AUTO", ncol=2), ncol=1,
@@ -794,7 +794,7 @@ p3 <- GAM_rr_var("PB","Sex", "F")
 p4 <- GAM_rr_var("PB","Sex", "M")
 
 
-png(file=paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/plots/gam_RR_agesex_PB.png"),
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/plots/gam_RR_agesex_PB.png"),
     width = 1000, height=600)
 
 plot_grid(p_title, plot_grid(p1, p2, p3, p4, labels = "AUTO", ncol=2), ncol=1,
@@ -910,7 +910,7 @@ z_rr <- z_rr %>%
 #z_rr$rr_upr[z_rr$rr_upr>=3] <- 3
 
 # Table
-#write.csv(z_rr, paste0("./output/second_dose/final/modelling/", z_event_endpoint, "/poisson_gam_", z_vacc_type, ".csv"))
+#write.csv(z_rr, paste0("./output/second_dose_", multiplicity_limit, "/final/modelling/", z_event_endpoint, "/poisson_gam_", z_vacc_type, ".csv"))
 
 ## P-value for quadratic term post 14 days
 z_quad <- glm(event ~ offset(log(pyears)) +  day*vacc + I(day^2)*vacc, 
