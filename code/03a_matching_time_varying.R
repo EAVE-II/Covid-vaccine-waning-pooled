@@ -17,7 +17,7 @@ eave_orange <- rgb(244,143,32, maxColorValue = 255)
 
 # Upper limit on the number of times anyone is used as a match
 # If you don't want an upper limit, set equal to ''.
-multiplicity_limit <- 1
+multiplicity_limits <- c(1, 5, 10)
 
 # Load in df_cohort and df_vaccinations data 
 df_cohort <- readRDS("./data/df_cohort.rds")
@@ -71,7 +71,8 @@ z_event <- z_event %>%
 z_vaccinations <- filter(df_vaccinations, 
                          date_vacc_1 <= a_end) %>% 
   mutate(vacc_type_2 = if_else(date_vacc_2 > a_end, NA_character_ , vacc_type_2),
-         date_vacc_2 = as.Date(ifelse(date_vacc_2 > a_end, NA, date_vacc_2), origin=as.Date("1970-01-01")) )
+         date_vacc_2 = ifelse(date_vacc_2 > a_end, as.Date(NA), date_vacc_2) )
+
 
 
 ## Whole cohort
@@ -80,16 +81,22 @@ z_vaccinations <- filter(df_vaccinations,
 z_chrt <- df_cohort %>%
   dplyr::rename(EAVE_LINKNO_uv = EAVE_LINKNO) %>%
   filter(!is.na(ageYear)) %>%
-  mutate(ur6_2016_name = replace_na(ur6_2016_name, "Unknown"))
+  mutate(ur6_2016_name = replace_na(ur6_2016_name, "Unknown")) 
 
 # Add in vacc variable
 z_chrt <- z_chrt %>%
   # Create vacc flag if EAVE ID = Vacc EAVE ID
-  left_join(select(z_vaccinations, EAVE_LINKNO, date_vacc_1),
+  left_join(select(z_vaccinations, EAVE_LINKNO, vacc_type, vacc_type_2,
+                   date_vacc_1, flag_incon),
             by=c("EAVE_LINKNO_uv" = "EAVE_LINKNO")) %>%
-  mutate(vacc = case_when(  EAVE_LINKNO_uv %in% omit_IDs ~ NA_real_,
-                            !is.na(date_vacc_1) ~ 1,
-                            TRUE ~ 0))  
+  # Only keep people with consistent vaccination records
+  filter( flag_incon == 0)  %>%
+  mutate(vacc = case_when( !is.na(date_vacc_1) ~ 1,
+                            TRUE ~ 0)) %>%
+  # Our cohort will be uv, AZ or PB only. Remove moderna
+  filter(vacc_type %in% c('AZ', 'PB', 'UNK') | is.na(vacc_type) ) %>%
+  filter(vacc_type_2 %in% c('AZ', 'PB', 'UNK') | is.na(vacc_type_2) ) 
+
 
 # Add age as individual year (truncated)
 z_chrt <- z_chrt %>% mutate(ageYear = if_else(ageYear >= 100,100, ageYear)) %>% 
@@ -350,22 +357,29 @@ for(j in 1:(length(a_months)-1)){
 df_matches <- z_merge_month %>%
   reduce(full_join)
 
-if (multiplicity_limit != ''){
-df_matches_less <- df_matches %>%
-  group_by(EAVE_LINKNO_uv) %>%
-  mutate(match_multiplicity = n()) 
-
-df_matches_more <- filter(df_matches_less, match_multiplicity > multiplicity_limit)
-
-df_matches_less <- filter(df_matches_less, match_multiplicity <= multiplicity_limit)
-
-df_matches_more <- df_matches_more %>%
-                          group_by(EAVE_LINKNO_uv) %>%
-                          sample_n(multiplicity_limit)
-
-df_matches <- bind_rows(df_matches_less, df_matches_more)
+# Randomly sample matches when they are used more than the multiplicity limit
+limit_matches <- function(df_matches, limit){
+  
+  if (limit != 'inf'){
+  df_matches_less <- df_matches %>%
+    group_by(EAVE_LINKNO_uv) %>%
+    mutate(match_multiplicity = n()) %>%
+    ungroup()
+  
+  df_matches_more <- filter(df_matches_less, match_multiplicity > limit)
+  
+  df_matches_less <- filter(df_matches_less, match_multiplicity <= limit)
+  
+  df_matches_more <- df_matches_more %>%
+                            group_by(EAVE_LINKNO_uv) %>%
+                            sample_n(limit) %>%
+                            ungroup()
+  
+  df_matches <- bind_rows(df_matches_less, df_matches_more)
+  
+  saveRDS(df_matches, paste0("./data/df_matches_first_dose_", limit, '_', z_event_endpoint,".rds"))
+  }
 }
-
 
 ##### 3 - Checks ####
 # Unique?
@@ -375,47 +389,12 @@ nrow(df_matches) == length(unique(df_matches$EAVE_LINKNO_vacc))
 nrow(df_matches)/length(which(z_chrt$vacc==1))
 
 
-# Number of matches being used multiple times
-match_multiplicity <- df_matches %>%
-  group_by(EAVE_LINKNO_uv) %>%
-  summarise(n=n()) %>%
-  arrange(desc(n)) 
-
-png(file=paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/match_multiplicity_histogram.png"))
-
-ggplot(match_multiplicity, aes(x=n)) + 
-  geom_histogram(binwidth = 1, fill= eave_green) + 
-  labs(x = "Match multiplicity")
-
-dev.off()
-
-match_multiplicity <- match_multiplicity %>% select(n) %>% table()%>% as.data.frame()
-
-saveRDS(match_multiplicity, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/match_multiplicity_histogram.rds"))
-
-
-# Number of vaccinated that get matched
-
-# Get those who have been 1st dose vaccinated in the cohort time period
-z_v1 <- filter(z_chrt, date_vacc_1 <= a_end) 
-
-n_v1 = nrow(z_v1)
-
-n_matches = nrow(df_matches)
-
-percent_matched <- n_matches/n_v1 * 100
-
-matching_stats <- data.frame('First dose vaccinated' =   format(n_v1 , nsmall=1, big.mark=","),
-                             'Matched' =  paste0( format(n_matches , nsmall=1, big.mark=",") , ' (', 
-                                                  round(percent_matched, 1), '%)'), 
-                             check.names = FALSE )
-
-write.csv(matching_stats, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/match_stats.csv"))
-
 
 #### 4 - Output ####
 
-saveRDS(df_matches, paste0("./data/df_matches_", z_event_endpoint,".rds"))
-#saveRDS(df_matches, paste0("./data/df_matches_", z_event_endpoint,"_",a_end,".rds"))
 
-rm(z_merge_ps_list, z_merge_ps_i, z_merge_ps_data, z_merge_month, z_df, z_df_i, z_1, m_j, loop_breaks5, data)
+for (limit in multiplicity_limits){
+  limit_matches(df_matches, limit)
+}
+
+rm(z_merge_ps_list, z_merge_ps_i, z_merge_ps_data, z_merge_month, z_df, z_df_i, m_j, loop_breaks5)

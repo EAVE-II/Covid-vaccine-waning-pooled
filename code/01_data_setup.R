@@ -12,6 +12,7 @@
 library(tidyverse)
 library(mgcv)
 library(lubridate)
+library(survival)
 
 # Server location
 Location <- "/conf/"  # Server
@@ -134,59 +135,6 @@ colnames(qcovid_rg)
 
 
  #### 2 - Vaccine data (df_vaccinations) ####
-# # Inital load
-# Vaccinations  <- readRDS(paste0(Location,"EAVE/GPanalysis/data/cleaned_data/C19vaccine.rds")) %>% 
-#   mutate(Date = as.Date(occurrence_time)) %>% 
-#   mutate(vacc_type = case_when(grepl("COURAGEOUS", type) ~ "PB",
-#                                grepl("TALENT", type) ~ "AZ",
-#                                type == "39114911000001105" ~ "AZ",
-#                                type == "39115611000001103" ~ "PB",
-#                                #type == "39115611000001105" ~ "PB",
-#                                TRUE ~ "UNK"), 
-#          dose_number = if_else(stage %in% c(0,3), 1L, stage))
-# 
-# # 1st dose
-# Vaccinations1 <- filter(Vaccinations, dose_number==1) %>% 
-#   dplyr::select(EAVE_LINKNO, Date, vacc_type, dose_number) %>% 
-#   arrange(EAVE_LINKNO, Date) %>% 
-#   filter(!duplicated(EAVE_LINKNO))
-# 
-# # 2nd dose
-# Vaccinations2 <- filter(Vaccinations, dose_number==2) %>% 
-#   dplyr::select(EAVE_LINKNO, Date, vacc_type, dose_number) %>% 
-#   arrange(EAVE_LINKNO, Date) %>% 
-#   filter(!duplicated(EAVE_LINKNO))
-# 
-# # Join 1st and 2nd dose as separate columns
-# df_vaccinations <- left_join(Vaccinations1,Vaccinations2, by="EAVE_LINKNO") %>% 
-#   mutate(date_vacc_1 = as.Date(Date.x), 
-#          date_vacc_2 = as.Date(Date.y) ) %>% 
-#   dplyr::rename(vacc_type=vacc_type.x,
-#                 vacc_type_2=vacc_type.y) %>% 
-#   dplyr::select(-dose_number.x, -dose_number.y, -Date.x, -Date.y) %>%
-#   #Get week of vaccination
-#   mutate(week_start_vacc1 = floor_date(date_vacc_1, unit = "week", 
-#                                        week_start = 1)) %>%
-#   mutate(week_start_vacc2 = floor_date(date_vacc_2, unit = "week", 
-#                                        week_start = 1)) %>%
-#   # Fix any 2nd dose vaccinations that occurred on the same day as first
-#   mutate(vacc_type_2 = if_else(!is.na(date_vacc_2) & (date_vacc_2 == date_vacc_1), NA_character_, vacc_type_2 ) ) %>% 
-#   mutate(date_vacc_2 = as.Date(ifelse(!is.na(date_vacc_2) & (date_vacc_2 == date_vacc_1), NA, date_vacc_2 ), origin=as.Date("1970-01-01")) ) %>%
-#   # Omit 1st dose records before 8th December 2020
-#   filter(date_vacc_1 >= a_begin) %>%  
-#   #omit inconsistent records 
-#   filter(vacc_type %in% c("AZ","PB")) %>% 
-#   filter(vacc_type_2 %in% c("AZ","PB") | is.na(vacc_type_2))
-# 
-# 
-# # These individuals have inconsistent records and will have their values set to NA in analysis
-# omit_IDs <- df_vaccinations %>%
-#   # Omit records with 2nd dose too close to 1st
-#   filter(  (!is.na(date_vacc_2)&(date_vacc_2 <= date_vacc_1 + 18)) |
-#            (!is.na(vacc_type_2) & (vacc_type_2 != vacc_type))  ) %>%
-#   pull(EAVE_LINKNO)
-# 
-# df_vaccinations <- filter(df_vaccinations, !(EAVE_LINKNO %in% omit_IDs) )
 
 source('/conf/EAVE/GPanalysis/progs/SRK/00_Read_GP_Vaccinations.R')
 
@@ -248,7 +196,6 @@ covid_hosp_death <- covid_death %>%
                                 "death")) %>%
   mutate(outcome_date = if_else(is.na(hosp_admission_date), "death",
                                 "hosp"))
-
 
 
 ## COVID-19 positive test
@@ -337,10 +284,10 @@ nrow(df_cohort) == length(unique(df_cohort$EAVE_LINKNO))
 
 ##### 7 - Save to data folder ####
 # Save df_cohort
-saveRDS(df_cohort, paste0("./data/df_cohort.rds"))
+#saveRDS(df_cohort, paste0("./data/df_cohort.rds"))
 
 # Save df_vaccinations
-saveRDS(df_vaccinations, paste0("./data/df_vaccinations.rds"))
+#saveRDS(df_vaccinations, paste0("./data/df_vaccinations.rds"))
 
 
 

@@ -30,11 +30,12 @@ z_event_endpoint <- "death_hosp"
 #z_event_endpoint <- "hosp_covid"
 #z_event_endpoint <- "death_covid"
 
+
 ### Load in data based on endpoint
 if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
-df_matches <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
+df_matches <- readRDS(paste0("./data/df_matches_second_dose_", multiplicity_limit, "_death_hosp.rds"))
 
-df_cc_ps_matches <- readRDS("./data/2nd_dose_df_cc_death_hosp.rds") %>%
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_second_dose_", multiplicity_limit, "_death_hosp", ".rds")) %>%
   select(-c(event, time_to_event, time_to_event14, period)) %>%
   rename(event = event_hosp, time_to_event = time_to_hosp, time_to_event14 =time_to_event14_hosp,
          period = period_hosp)
@@ -42,24 +43,28 @@ df_cc_ps_matches <- readRDS("./data/2nd_dose_df_cc_death_hosp.rds") %>%
 z_title <- "COVID-19 hospitalisations"}
 
 if (z_event_endpoint =="death_hosp") {z_event <- covid_hosp_death
-df_matches <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
-df_cc_ps_matches <- readRDS("./data/2nd_dose_df_cc_death_hosp.rds")
+df_matches <- readRDS(paste0("./data/df_matches_second_dose_", multiplicity_limit, "_death_hosp.rds"))
+
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_second_dose_", multiplicity_limit, "_death_hosp", ".rds"))
 z_title <- "COVID-19 hospitalisations or deaths"
 }
 
 if (z_event_endpoint =="positive_test") {z_event <- positive_test
-df_cc_ps_matches <- readRDS("./2nd_dose_data/df_cc_positive_test.rds")
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_second_dose_", multiplicity_limit, "_", "positive_test.rds"))
 z_title <- "COVID-19 positive infections"
 }
 
 if (z_event_endpoint =="death_covid") {z_event <- covid_death
-df_matches <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
-df_cc_ps_matches <- readRDS("./data/2nd_dose_df_cc_death_hosp.rds")%>%
+df_matches <- readRDS(paste0("./data/df_matches_second_dose_", multiplicity_limit, "_death_hosp.rds"))
+
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_second_dose_", multiplicity_limit, "_death_hosp", ".rds"))%>%
   select(-c(event, time_to_event, time_to_event14, period)) %>%
   rename(event = event_death, time_to_event = time_to_death, time_to_event14 =time_to_event14_death,
          period = period_death)
 z_title <- "COVID-19 deaths"
 }
+
+
 
 
 # Find end date according to admission date
@@ -523,6 +528,7 @@ dev.off()
 # Was a function but didn't work with saving files automatically
 
 # Select vaccine type
+# PB has to be done first!
 #z_vacc_type <- "PB"
 z_vacc_type <- "AZ"
 
@@ -717,7 +723,7 @@ p_c <- z_rr %>%
   geom_hline(yintercept = 0.5, linetype = 3) +
   annotate("text", x=80, y=0.6, label = "Waning threshold", size=3) +
   scale_x_continuous(breaks = seq(14,84, by = 7), 
-                     limits = c(0,70))
+                     limits = c(0,84))
   
 
 ## Weekly RRs from z_rr to overlap ontop of p_c
@@ -946,7 +952,7 @@ p_c <- z_rr %>%
   geom_hline(yintercept = 0.5, linetype = 3) +
   annotate("text", x=80, y=0.6, label = "Waning threshold", size=3) +
   scale_x_continuous(breaks = seq(14,84, by = 7), 
-                     limits = c(0,70))
+                     limits = c(0,84))
 
 
 # Weekly z_rr

@@ -29,9 +29,9 @@ z_event_endpoint <- "death_hosp"
 
 ### Load in data based on endpoint
 if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
-df_matches <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
+df_matches <- readRDS(paste0("./data/df_matches_second_dose_", multiplicity_limit, "_death_hosp.rds"))
 
-df_cc_ps_matches <- readRDS("./data/2nd_dose_df_cc_death_hosp.rds") %>%
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_second_dose_", multiplicity_limit, "_death_hosp", ".rds")) %>%
   select(-c(event, time_to_event, time_to_event14, period)) %>%
   rename(event = event_hosp, time_to_event = time_to_hosp, time_to_event14 =time_to_event14_hosp,
          period = period_hosp)
@@ -39,19 +39,21 @@ df_cc_ps_matches <- readRDS("./data/2nd_dose_df_cc_death_hosp.rds") %>%
 z_title <- "COVID-19 hospitalisations"}
 
 if (z_event_endpoint =="death_hosp") {z_event <- covid_hosp_death
-df_matches <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
-df_cc_ps_matches <- readRDS("./data/2nd_dose_df_cc_death_hosp.rds")
+df_matches <- readRDS(paste0("./data/df_matches_second_dose_", multiplicity_limit, "_death_hosp.rds"))
+
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_second_dose_", multiplicity_limit, "_death_hosp", ".rds"))
 z_title <- "COVID-19 hospitalisations or deaths"
 }
 
 if (z_event_endpoint =="positive_test") {z_event <- positive_test
-df_cc_ps_matches <- readRDS("./data/2nd_dose_df_cc_positive_test.rds")
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_second_dose_", multiplicity_limit, "_", "positive_test.rds"))
 z_title <- "COVID-19 positive infections"
 }
 
 if (z_event_endpoint =="death_covid") {z_event <- covid_death
-df_matches <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
-df_cc_ps_matches <- readRDS("./data/2nd_dose_df_cc_death_hosp.rds")%>%
+df_matches <- readRDS(paste0("./data/df_matches_second_dose_", multiplicity_limit, "_death_hosp.rds"))
+
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_second_dose_", multiplicity_limit, "_death_hosp", ".rds"))%>%
   select(-c(event, time_to_event, time_to_event14, period)) %>%
   rename(event = event_death, time_to_event = time_to_death, time_to_event14 =time_to_event14_death,
          period = period_death)
@@ -111,16 +113,26 @@ df_cc_desc <- df_cc_ps_matches %>%
 table(df_cc_desc$Total, df_cc_desc$vacc)
 table(df_cc_desc$Total, df_cc_desc$vacc, df_cc_desc$vacc_type) # By vacc type
 
-# Explanatory variables
-explanatory <- c("event","event_hosp","event_death","Sex", "ageYear", "age_grp", 
-                 "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
-                 "n_tests_gp", "EAVE_Smoke", "bmi_cat", "ave_hh_age", "n_hh_gp",
+
+
+# # Explanatory variables
+# explanatory <- c("event","event_hosp","event_death","Sex", "ageYear", "age_grp", 
+#                  "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
+#                  "n_tests_gp", "EAVE_Smoke", "bmi_cat", "ave_hh_age", "n_hh_gp",
+#                  qcovid_diags)
+
+
+# Use same explanatory variables as in cohort descriptives
+explanatory <- c("Sex", "ageYear", "age_grp", "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
+                 "n_tests_gp", "test_before_dec8", "ave_hh_age", "n_hh_gp", "care_home_elderly",
+                 "bmi_cat", "EAVE_Smoke", 
                  qcovid_diags)
+
 
 # Vaccination status
 dependent <- "vacc"
 tbl4_tot <- df_cc_desc %>%
-  summary_factorlist(dependent, explanatory, p = F)
+  summary_factorlist(dependent, explanatory,  add_col_totals = TRUE,  p = F)
 
 
 write.csv(tbl4_tot, paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/tbl4_tot.csv"))
@@ -147,8 +159,10 @@ head(tbl4_pb)
 write.csv(tbl4_pb, paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/tbl4_pb.csv"))
 
 # Bind tables together
-tbl4 <- bind_cols(tbl4_tot, select(tbl4_az, v1_az, v2_az))
-tbl4 <- bind_cols(tbl4, select(tbl4_pb, v1_pb, v2_pb))
+# tbl4 <- bind_cols(tbl4_tot, select(tbl4_az, v1_az, v2_az))
+# tbl4 <- bind_cols(tbl4, select(tbl4_pb, v1_pb, v2_pb))
+
+tbl4 <- bind_cols(tbl4_az, select(tbl4_pb, uv_pb, vacc_pb))
 
 write.csv(tbl4, paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/tbl4.csv"))
 
@@ -331,22 +345,53 @@ dev.off()
 
 
 ##### 5 - Number of matches being used #####
-# Checks how many matches were used repetively
+# Checks how many matches were used repeatedly
 
-# Top 10
-df_cc_ps_matches %>%
+
+# Number of matches being used multiple times
+match_multiplicity <-filter( df_cc_ps_matches, vacc == 'v1') %>%
   group_by(EAVE_LINKNO) %>%
   summarise(n=n()) %>%
-  arrange(desc(n)) %>%
-  head()
+  ungroup() %>%
+  group_by(n) %>%
+  summarise(n = n())
 
-# Distribution
-df_cc_ps_matches %>%
-  group_by(EAVE_LINKNO) %>%
-  summarise(n=n()) %>%
-  arrange(desc(n)) %>%
-  ggplot()+
-  geom_histogram(aes(x=n))
+
+ 
+png(file=paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/match_multiplicity_histogram.png"))
+
+ggplot(match_multiplicity, aes(x= rownames(match_multiplicity), y= n )) + 
+  geom_bar(stat="identity", fill= eave_green) + 
+  labs(x = "Match multiplicity") + 
+  scale_y_continuous(labels = scales::label_comma())
+
+dev.off()
+
+saveRDS(match_multiplicity, paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/match_multiplicity_histogram.rds"))
+
+
+# Number of vaccinated that get matched
+
+z_chrt_desc <- readRDS('./data/z_chrt_desc.rds')
+
+# Get those who have been 2nd dose vaccinated in the cohort time period
+z_v2 <- filter(z_chrt_desc, date_vacc_2 <= a_end) 
+
+n_v2 = nrow(z_v2)
+
+n_matches = filter(df_cc_ps_matches, vacc == 'v2') %>%
+  select(EAVE_LINKNO) %>%
+  nrow()
+
+percent_matched <- n_matches/n_v2 * 100
+
+match_stats <- data.frame('Second dose vaccinated' =   format(n_v2 , nsmall=1, big.mark=","),
+                             'Matched' =  paste0( format(n_matches , nsmall=1, big.mark=",") , ' (', 
+                                                  round(percent_matched, 1), '%)'), 
+                             check.names = FALSE )
+
+write.csv(match_stats, paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/match_stats.csv"))
+
 
 
 
@@ -365,6 +410,10 @@ names(vacc_type_label) <- c("PB", "AZ")
 
 ### Main variables
 
+### Save dataset
+# Cohort descriptive dataframe required for covariate balance
+z_chrt_desc <- readRDS("./data/z_chrt_desc.rds")
+
 # Explanatory variables with labels as names
 explanatory <- c("Sex"="Sex", "Age (grouped)" = "age_grp", "Deprivation status" = "simd2020_sc_quintile", 
                  "Urban/Rural index" ="ur6_2016_name", "No. risk groups"="n_risk_gps",
@@ -376,7 +425,8 @@ explanatory <- c("Sex"="Sex", "Age (grouped)" = "age_grp", "Deprivation status" 
 z_chrt_desc <- readRDS(paste0("./data/z_chrt_desc.rds"))
 
 cb_pb_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
-                                 mutate(vacc = recode(vacc2, "0" = "uv", "1" = "vacc")),
+                                 mutate(vacc = recode(vacc2, "0" = "uv", "1" = "vacc")) %>%
+                                 filter( vacc %in% c('uv', 'vacc') ),
                                explanatory = explanatory, z_vacc_type = "PB")
 # Matched population
 cb_pb <- cov_bal_vacc_fn(data = df_cc_desc %>%
@@ -386,7 +436,8 @@ cb_pb <- cov_bal_vacc_fn(data = df_cc_desc %>%
 ## AZ
 # Overall population (crude)
 cb_az_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
-                                 mutate(vacc = recode(vacc2, "0" = "uv", "1" = "vacc")),
+                                 mutate(vacc = recode(vacc2, "0" = "uv", "1" = "vacc")) %>%
+                                 filter( vacc %in% c('uv', 'vacc')) ,
                                explanatory = explanatory, z_vacc_type = "AZ")
 
 # Matched population
@@ -423,7 +474,7 @@ ggplot(cb_both, aes(x=smd, y= label, shape = data, colour = data), size=3) +
         strip.text = element_text(colour = "black", hjust = 0, size=10)) +
   labs(x="Standardised mean differences", y="", title = "Covariate balance",
        shape = "Cohort", color = "Cohort",
-       caption = "Positive standard mean differences suggests characteristic is more common in the unvaccinated group")
+       caption = "Positive standard mean differences suggests characteristic is more common in the first dose vaccinated group")
 
 
 dev.off()
@@ -441,7 +492,8 @@ names(explanatory) <- c("Atrial fibrillation", "Asthma", "Blood cancer", "Heart 
                         "Thrombosis or pulmonary embolus", "Care housing category", "Learning disability or Down's", "Kidney disease")
 ## PB
 cb_pb_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
-                                 mutate(vacc = recode(vacc2, "0" = "uv", "1" = "vacc")),
+                                 mutate(vacc = recode(vacc2, "0" = "uv", "1" = "vacc")) %>%
+                                 filter( vacc %in% c('uv', 'vacc')) ,
                                explanatory = explanatory, z_vacc_type = "PB")
 cb_pb <- cov_bal_vacc_fn(data = df_cc_desc %>%
                            mutate(vacc = recode(vacc, "v1" = "uv", "v2" = "vacc")),
@@ -449,7 +501,8 @@ cb_pb <- cov_bal_vacc_fn(data = df_cc_desc %>%
 
 ## AZ
 cb_az_crude <- cov_bal_vacc_fn(data = z_chrt_desc %>%
-                                 mutate(vacc = recode(vacc2, "0" = "uv", "1" = "vacc")),
+                                 mutate(vacc = recode(vacc2, "0" = "uv", "1" = "vacc")) %>%
+                                 filter( vacc %in% c('uv', 'vacc')) ,
                                explanatory = explanatory, z_vacc_type = "AZ")
 cb_az <- cov_bal_vacc_fn(data = df_cc_desc %>%
                            mutate(vacc = recode(vacc, "v1" = "uv", "v2" = "vacc")),
@@ -482,7 +535,7 @@ ggplot(cb_both, aes(x=smd, y= label, shape = data, colour = data), size=3) +
         strip.text = element_text(colour = "black", hjust = 0, size=10)) +
   labs(x="Standardised mean differences", y="", title = "Covariate balance",
        shape = "Cohort", color = "Cohort",
-       caption = "Positive standard mean differences suggests characteristic is more common in the unvaccinated group
+       caption = "Positive standard mean differences suggests characteristic is more common in the first dose vaccinated group
 Risk groups defined using QCOVID codes
 Learning disability: 1 = Learning disability, 2 = Down's Syndrome
        Kidney disease: 1 = CKD3, 2 = CKD4, 3 = CKD5 without dialysis/transplant, 4 = CKD5 with dialysis, 5 = CKD5 with transplant

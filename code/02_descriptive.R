@@ -46,7 +46,7 @@ z_test_event_death <- 21
 z_title <- "COVID-19 hospitalisations and deaths"}
 if (z_event_endpoint =="positive_test") {z_event <- positive_test}
 
-# Find end date according to admission date
+# Cohort end date
 a_end <- as.Date("2021-06-30")
 
 # Filter event data to end date
@@ -238,7 +238,6 @@ z_chrt_desc <- z_chrt_desc %>%
 
 ### Save dataset
 saveRDS(z_chrt_desc, paste0("./data/z_chrt_desc.rds"))
-
 
 
 

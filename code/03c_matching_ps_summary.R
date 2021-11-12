@@ -28,9 +28,9 @@ z_event_endpoint <- "death_hosp"
 
 ### Load in data based on endpoint
 if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
-df_matches <- readRDS("./data/df_matches_death_hosp.rds")
+df_matches <- readRDS(paste0("./data/df_matches_first_dose_", multiplicity_limit, "_death_hosp.rds"))
 
-df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds") %>%
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_first_dose_", multiplicity_limit, "_death_hosp", ".rds")) %>%
   select(-c(event, time_to_event, time_to_event14, period)) %>%
   rename(event = event_hosp, time_to_event = time_to_hosp, time_to_event14 =time_to_event14_hosp,
          period = period_hosp)
@@ -38,19 +38,21 @@ df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds") %>%
 z_title <- "COVID-19 hospitalisations"}
 
 if (z_event_endpoint =="death_hosp") {z_event <- covid_hosp_death
-df_matches <- readRDS("./data/df_matches_death_hosp.rds")
-df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds")
+df_matches <- readRDS(paste0("./data/df_matches_first_dose_", multiplicity_limit, "_death_hosp.rds"))
+
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_first_dose_", multiplicity_limit, "_death_hosp", ".rds"))
 z_title <- "COVID-19 hospitalisations or deaths"
 }
 
 if (z_event_endpoint =="positive_test") {z_event <- positive_test
-df_cc_ps_matches <- readRDS("./data/df_cc_positive_test.rds")
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_first_dose_", multiplicity_limit, "_", "positive_test.rds"))
 z_title <- "COVID-19 positive infections"
 }
 
 if (z_event_endpoint =="death_covid") {z_event <- covid_death
-df_matches <- readRDS("./data/df_matches_death_hosp.rds")
-df_cc_ps_matches <- readRDS("./data/df_cc_death_hosp.rds")%>%
+df_matches <- readRDS(paste0("./data/df_matches_first_dose_", multiplicity_limit, "_death_hosp.rds"))
+
+df_cc_ps_matches <- readRDS(paste0("./data/df_cc_first_dose_", multiplicity_limit, "_death_hosp", ".rds"))%>%
   select(-c(event, time_to_event, time_to_event14, period)) %>%
   rename(event = event_death, time_to_event = time_to_death, time_to_event14 =time_to_event14_death,
          period = period_death)
@@ -68,6 +70,13 @@ z_event <- z_event %>%
 
 #### 1 - Characteristics of cc cohort ####
 # Adding in characteristic information to cc data
+
+## Add in household information
+# Household information (from Sept 2020)
+Cohort_Household <- readRDS("/conf/EAVE/GPanalysis/outputs/temp/Cohort_Household.rds") %>%
+  mutate(n_hh_gp = cut(n_hh, breaks=c(0,1,2,5,10,30,100,max(n_hh)),
+                       labels=c("1", "2", "3-5", "6-10", "11-30", "31-100", "101+")))%>% 
+  mutate(ave_hh_age=if_else(is.na(ave_hh_age), mean(ave_hh_age, na.rm=T), ave_hh_age) )
 
 # QCOVID diagnoses 
 qcovid_diags <- colnames(df_cohort)[startsWith(colnames(df_cohort), "Q")]
@@ -141,8 +150,10 @@ head(tbl4_pb)
 write.csv(tbl4_pb, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/tbl4_pb.csv"))
 
 # Bind tables together
-tbl4 <- bind_cols(tbl4_tot, select(tbl4_az, uv_az, vacc_az))
-tbl4 <- bind_cols(tbl4, select(tbl4_pb, uv_pb, vacc_pb))
+#tbl4 <- bind_cols(tbl4_tot, select(tbl4_az, uv_az, vacc_az))
+#tbl4 <- bind_cols(tbl4, select(tbl4_pb, uv_pb, vacc_pb))
+
+tbl4 <- bind_cols(tbl4_az, select(tbl4_pb, uv_pb, vacc_pb))
 
 write.csv(tbl4, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/tbl4.csv"))
 
@@ -325,22 +336,53 @@ dev.off()
 
 
 ##### 5 - Number of matches being used #####
-# Checks how many matches were used repetively
+# Checks how many matches were used repeatedly
 
-# Top 10
-df_cc_ps_matches %>%
+z_chrt_desc <- readRDS('./data/z_chrt_desc.rds')
+
+# Number of matches being used multiple times
+match_multiplicity <-filter( df_cc_ps_matches, vacc == 'uv') %>%
   group_by(EAVE_LINKNO) %>%
   summarise(n=n()) %>%
-  arrange(desc(n)) %>%
-  head()
+  ungroup() %>%
+  group_by(n) %>%
+  summarise(n = n())
 
-# Distribution
-df_cc_ps_matches %>%
-  group_by(EAVE_LINKNO) %>%
-  summarise(n=n()) %>%
-  arrange(desc(n)) %>%
-  ggplot()+
-  geom_histogram(aes(x=n))
+
+
+png(file=paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/match_multiplicity_histogram.png"))
+
+ggplot(match_multiplicity, aes(x= rownames(match_multiplicity), y= n )) + 
+  geom_bar(stat="identity", fill= eave_green) + 
+  labs(x = "Match multiplicity") + 
+  scale_y_continuous(labels = scales::label_comma())
+
+dev.off()
+
+saveRDS(match_multiplicity, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/match_multiplicity_histogram.rds"))
+
+
+# Number of vaccinated that get matched
+
+# Get those who have been 1st dose vaccinated in the cohort time period
+z_v1 <- filter(z_chrt_desc, date_vacc_1 <= a_end) 
+
+n_v1 = nrow(z_v1)
+
+n_matches = filter(df_cc_ps_matches, vacc == 'vacc') %>%
+            select(EAVE_LINKNO) %>%
+            nrow()
+
+percent_matched <- n_matches/n_v1 * 100
+
+match_stats <- data.frame('First dose vaccinated' =   format(n_v1 , nsmall=1, big.mark=","),
+                             'Matched' =  paste0( format(n_matches , nsmall=1, big.mark=",") , ' (', 
+                                                  round(percent_matched, 1), '%)'), 
+                             check.names = FALSE )
+
+write.csv(match_stats, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/match_stats.csv"))
+
+
 
 
 
@@ -353,6 +395,10 @@ vacc_type_label <- c("B) BNT162b2", "A) ChAdOx1")
 names(vacc_type_label) <- c("PB", "AZ")
 
 ### Main variables
+
+### Save dataset
+# Cohort descriptive dataframe required for covariate balance
+z_chrt_desc <- readRDS("./data/z_chrt_desc.rds")
 
 # Explanatory variables with labels as names
 explanatory <- c("Sex"="Sex", "Age (grouped)" = "age_grp", "Deprivation status" = "simd2020_sc_quintile", 

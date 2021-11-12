@@ -175,6 +175,8 @@ event_summary_wt <- function(data){
 
 
 
+
+
 ##### Covariate balance #####
 # Calculates the standardised mean differences (smd) between the uv and vacc for each of 
 # the categorical explanatory variables for a vaccine type.
@@ -191,9 +193,6 @@ event_summary_wt <- function(data){
 
 # Table output to be used to plot comparisons between the matched and overall population 
 # (before matching - crude)
-
-# cb_pb <- cov_bal_vacc_fn(data = df_cc_desc,
-#                          explanatory = explanatory, z_vacc_type = "PB")
 
 
 cov_bal_vacc_fn <- function(data, explanatory, z_vacc_type){
@@ -219,6 +218,8 @@ cov_bal_vacc_fn <- function(data, explanatory, z_vacc_type){
   
   # For each explanatory variable, get the standardised mean differences
   for(i in 1:length(explanatory)){
+    
+  
     
     # Identify whether binary or not
     n <- data %>%
@@ -525,7 +526,7 @@ GAM_rr_var <- function(z_vacc_type, variable, level){
     geom_hline(yintercept = 0.5, linetype = 3) +
     annotate("text", x=80, y=0.6, label = "Waning threshold", size=3) +
     scale_x_continuous(breaks = seq(14,84, by = 7), 
-                       limits = c(0,70))
+                       limits = c(0,84))
   
   
   # Weekly z_rr

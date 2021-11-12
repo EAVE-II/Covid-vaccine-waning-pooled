@@ -8,6 +8,9 @@
 
 #### 0 - Set up ####
 
+# Choose which multiplicity limit we're using
+multiplicity_limit <- 5
+
 ## Load in matched and vaccinated data
 
 # Event
@@ -18,17 +21,17 @@ z_event_endpoint <- "death_hosp"
 
 ### Load in data based on endpoint
 if (z_event_endpoint =="hosp_covid") {z_event <- covid_hospitalisations
-z_merge <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
+z_merge <- readRDS(paste0("./data/df_matches_second_dose_", multiplicity_limit, '_', z_event_endpoint,".rds"))
 }
 if (z_event_endpoint =="death_hosp") {z_event <- covid_hosp_death
-z_merge <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
+z_merge <- readRDS(paste0("./data/df_matches_second_dose_", multiplicity_limit, '_', z_event_endpoint,".rds"))
 }
 if (z_event_endpoint =="positive_test") {z_event <- positive_test
-z_merge <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
+z_merge <- readRDS(paste0("./data/df_matches_second_dose_", multiplicity_limit, '_', z_event_endpoint,".rds"))
 
 }
 if (z_event_endpoint =="death_covid") {z_event <- covid_death
-z_merge <- readRDS("./data/2nd_dose_df_matches_death_hosp.rds")
+z_merge <- readRDS(paste0("./data/df_matches_second_dose_", multiplicity_limit, '_', z_event_endpoint,".rds"))
 }
 
 
@@ -270,7 +273,7 @@ df_cc <- df_cc %>%
 
 
 # Person years and events lost due to vaccine censoring
-#Uncensored
+# Censored
 z.agg <- pyears(Surv(time_to_event,event) ~ total ,
             data=df_cc %>% mutate(total = 'Censored') , scale=1, data.frame=TRUE)
 
@@ -279,7 +282,7 @@ df_res1 <- df_res1 %>%
   mutate(pyears =round(pyears/365.25,1)) %>%
   select(-n) 
 
-# Censored
+# Uncensored
 z.agg <- pyears(Surv(time_to_event_non_vacc_censored, event_non_vacc_censored) ~ total,
                 data=df_cc %>% mutate(total = 'Uncensored') , scale=1, data.frame=TRUE)
 
@@ -294,11 +297,11 @@ df_res <- bind_rows(df_res1, df_res2) %>%
 
 names(df_res) <- c('', 'Person years', 'Events')
 
-write.csv(df_res, "./output/second_dose_", multiplicity_limit, "/final/matching_summary/pyears_lost.csv")
+write.csv(df_res, paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/pyears_lost.csv"))
 
 
 ##### 8 - Save as rds ####
-saveRDS(df_cc, paste0("./data/2nd_dose_df_cc_",
+saveRDS(df_cc, paste0("./data/df_cc_second_dose_", multiplicity_limit, '_',
                       z_event_endpoint, ".rds"))
 
 rm(z_cc, z_cc_v1, z_cc_v2, df_cc, z_merge)
