@@ -23,6 +23,28 @@ library("spatstat")
 # A table with each explanatory variable as a row (multiple rows for each category if categorical)
 # with two columns of the weighted summaries for the levels in the dependent variable
 
+
+# Dependent = vaccination type - by dose and brand
+summary_tbl_wt2 <- summary_factorlist_wt(z_chrt_desc %>%
+                                           mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
+                                           mutate(care_home_elderly = as.character(care_home_elderly)),
+                                         "vacc_type_comb", explanatory = explanatory) %>%
+  select('characteristic', 'levels', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+
+names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose ChAdOx1',
+                            'Two doses ChAdOx1', 'One dose BNT162b2', 'Two doses BNT162b2')
+
+summary_tbl_wt2['1', 'Levels'] <- ''
+
+
+
+data <- z_chrt_desc %>%
+  mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
+  mutate(care_home_elderly = as.character(care_home_elderly))
+
+dependent <- "vacc_type_comb"
+
+
 summary_factorlist_wt <- function(data, dependent, explanatory){
   # Create list to put in summaries into each element
   summary_tbl_list <- list()
@@ -41,10 +63,10 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
                   sd = round(sqrt(spatstat.geom::weighted.var(!!sym(explanatory[i]), w = eave_weight)),1)) %>%
         mutate(mean.sd = paste0(mean, " (",sd,")")) %>%
         select(-mean, -sd) %>%
-        mutate("characteristic" = explanatory[i]) %>%
+        mutate("Characteristic" = explanatory[i]) %>%
         pivot_wider(names_from = !!sym(dependent), values_from = mean.sd) %>%
-        relocate(characteristic) %>%
-        mutate(levels = "mean.sd")
+        relocate(Characteristic) %>%
+        mutate(Levels = "mean.sd")
       
       
       z_median <- data %>%
@@ -52,13 +74,13 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
         summarise(median = spatstat.geom::weighted.median(!!sym(explanatory[i]), w = eave_weight),
                   q1 = spatstat.geom::weighted.quantile(!!sym(explanatory[i]), w = eave_weight, probs = 0.25),
                   q3 = spatstat.geom::weighted.quantile(!!sym(explanatory[i]), w = eave_weight, probs = 0.75)) %>%
-        mutate("characteristic" = explanatory[i]) %>%
+        mutate("Characteristic" = explanatory[i]) %>%
         mutate(iqr = q3 -q1) %>%
         mutate(median.iqr = paste0(median, " (",iqr,")")) %>%
         select(-q1, -q3, -median, -iqr) %>%
         pivot_wider(names_from = !!sym(dependent), values_from = median.iqr) %>%
-        relocate(characteristic) %>%
-        mutate(levels = "median.iqr")
+        relocate(Characteristic) %>%
+        mutate(Levels = "median.iqr")
       
       # Combine!!
       summary_tbl_list[[i]] <- full_join(z_mean, z_median)
@@ -76,9 +98,9 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
         mutate_if(is.numeric, ~formatC(round(.,0), format = "f", big.mark = ",", drop0trailing = TRUE)) %>%
         mutate(n_perc := paste0(n, " (", perc,"%)")) %>%
         select(-n, -perc) %>%
-        rename("levels"=explanatory[i], !!dependent := n_perc) %>%
-        mutate("characteristic" = explanatory[i]) %>%
-        relocate(characteristic)
+        rename("Levels"=explanatory[i], !!dependent := n_perc) %>%
+        mutate("Characteristic" = explanatory[i]) %>%
+        relocate(Characteristic)
       
     } else {
 
@@ -92,9 +114,9 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
         mutate(n_perc := paste0(n, " (", perc,"%)")) %>%
         select(-n, -perc) %>%
         pivot_wider(names_from = !!sym(dependent), values_from = n_perc) %>%
-        rename("levels"=explanatory[i]) %>%
-        mutate("characteristic" = explanatory[i]) %>%
-        relocate(characteristic)
+        rename("Levels"=explanatory[i]) %>%
+        mutate("Characteristic" = explanatory[i]) %>%
+        relocate(Characteristic)
       
     }
   }
@@ -102,6 +124,9 @@ summary_factorlist_wt <- function(data, dependent, explanatory){
   # Combine list together to make dataset
   summary_tbl_wt <- summary_tbl_list %>%
     reduce(full_join)
+  
+  summary_tbl_wt <- mutate(summary_tbl_wt, 
+                  Characteristic = ifelse(duplicated(Characteristic), '', Characteristic))
   
   summary_tbl_wt
 }

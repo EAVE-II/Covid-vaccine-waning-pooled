@@ -314,6 +314,8 @@ event_summary_tbl_wt <- event_summary_wt(z_chrt_desc)
 write.csv(event_summary_tbl_wt, "./output/descriptives/event_summary_table_weights.csv", row.names = F)
 
 
+
+
 ## Non-elderly care home population summary tables
 # Dependent = vaccination status 
 summary_tbl_wt1 <- summary_factorlist_wt(z_chrt_desc %>% 
