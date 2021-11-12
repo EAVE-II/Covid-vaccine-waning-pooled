@@ -23,28 +23,6 @@ library("spatstat")
 # A table with each explanatory variable as a row (multiple rows for each category if categorical)
 # with two columns of the weighted summaries for the levels in the dependent variable
 
-
-# Dependent = vaccination type - by dose and brand
-summary_tbl_wt2 <- summary_factorlist_wt(z_chrt_desc %>%
-                                           mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
-                                           mutate(care_home_elderly = as.character(care_home_elderly)),
-                                         "vacc_type_comb", explanatory = explanatory) %>%
-  select('characteristic', 'levels', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
-
-names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose ChAdOx1',
-                            'Two doses ChAdOx1', 'One dose BNT162b2', 'Two doses BNT162b2')
-
-summary_tbl_wt2['1', 'Levels'] <- ''
-
-
-
-data <- z_chrt_desc %>%
-  mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
-  mutate(care_home_elderly = as.character(care_home_elderly))
-
-dependent <- "vacc_type_comb"
-
-
 summary_factorlist_wt <- function(data, dependent, explanatory){
   # Create list to put in summaries into each element
   summary_tbl_list <- list()

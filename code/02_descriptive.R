@@ -288,7 +288,7 @@ summary_tbl_wt1 <- summary_factorlist_wt(z_chrt_desc %>%
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            mutate(care_home_elderly = as.character(care_home_elderly)),
                                          "vacc", explanatory = explanatory) %>%
-                                          select('characteristic', 'levels', '0', '1')
+                                          select('Characteristic', 'Levels', '0', '1')
 
 names(summary_tbl_wt1) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose vaccinated')
 
@@ -297,7 +297,7 @@ summary_tbl_wt2 <- summary_factorlist_wt(z_chrt_desc %>%
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            mutate(care_home_elderly = as.character(care_home_elderly)),
                                          "vacc_type_comb", explanatory = explanatory) %>%
-  select('characteristic', 'levels', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+  select('Characteristic', 'Levels', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
 
 names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose ChAdOx1',
                             'Two doses ChAdOx1', 'One dose BNT162b2', 'Two doses BNT162b2')
@@ -327,7 +327,7 @@ summary_tbl_wt2 <- summary_factorlist_wt(z_chrt_desc %>%
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 
                                            filter(care_home_elderly == 0),
                                          "vacc_type_comb", explanatory = explanatory) %>%
-          select('characteristic', 'levels', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
+          select('Characteristic', 'Levels', 'uv', 'AZ_v1', 'AZ_v2', 'PB_v1', 'PB_v2')
 
 names(summary_tbl_wt2) <- c('Characteristic', 'Levels', 'Unvaccinated', 'One dose ChAdOx1',
                             'Two doses ChAdOx1', 'One dose BNT162b2', 'Two doses BNT162b2')
