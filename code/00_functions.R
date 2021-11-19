@@ -526,8 +526,8 @@ GAM_rr_var <- function(z_vacc_type, variable, level){
     theme_light() +
     lims(y=c(0,3)) +
     geom_hline(yintercept = 1, linetype = 1) +
-    geom_hline(yintercept = 0.5, linetype = 3) +
-    annotate("text", x=80, y=0.6, label = "Waning threshold", size=3) +
+#    geom_hline(yintercept = 0.5, linetype = 3) +
+#    annotate("text", x=80, y=0.6, label = "Waning threshold", size=3) +
     scale_x_continuous(breaks = seq(14,84, by = 7), 
                        limits = c(0,84))
   

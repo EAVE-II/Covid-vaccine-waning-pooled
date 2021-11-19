@@ -9,7 +9,7 @@
 #### 0 - Set up ####
 
 # Choose which multiplicity limit we're using
-multiplicity_limit <- 5
+multiplicity_limit <- 1
 
 ## Load in matched and vaccinated data
 

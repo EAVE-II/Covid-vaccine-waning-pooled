@@ -317,6 +317,10 @@ write.csv(event_summary_tbl_wt, "./output/descriptives/event_summary_table_weigh
 
 
 ## Non-elderly care home population summary tables
+
+explanatory <- setdiff(explanatory, "care_home_elderly")
+
+
 # Dependent = vaccination status 
 summary_tbl_wt1 <- summary_factorlist_wt(z_chrt_desc %>% 
                                            mutate_at(vars(qcovid_diags), function(x) as.character(x)) %>% 

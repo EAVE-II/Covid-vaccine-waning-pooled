@@ -115,15 +115,15 @@ table(df_cc_desc$Total, df_cc_desc$vacc)
 table(df_cc_desc$Total, df_cc_desc$vacc, df_cc_desc$vacc_type) # By vacc type
 
 # Explanatory variables
-explanatory <- c("event","event_hosp","event_death","Sex", "ageYear", "age_grp", 
+explanatory <- c("event","Sex", "ageYear", "age_grp", 
                  "simd2020_sc_quintile", "ur6_2016_name", "n_risk_gps",
-                 "n_tests_gp", "EAVE_Smoke", "bmi_cat", "ave_hh_age", "n_hh_gp",
+                 "n_tests_gp","test_before_dec8", "ave_hh_age", "n_hh_gp", "bmi_cat", "EAVE_Smoke",
                  qcovid_diags)
 
 # Vaccination status
 dependent <- "vacc"
 tbl4_tot <- df_cc_desc %>%
-  summary_factorlist(dependent, explanatory, p = F)
+  summary_factorlist(dependent, explanatory, add_col_totals = TRUE, p = F)
 
 
 write.csv(tbl4_tot, paste0("./output/first_dose_", multiplicity_limit, "/final/matching_summary/tbl4_tot.csv"))
@@ -133,7 +133,7 @@ write.csv(tbl4_tot, paste0("./output/first_dose_", multiplicity_limit, "/final/m
 # AZ
 tbl4_az <- df_cc_desc %>%
   filter(vacc_type == "AZ") %>%
-  summary_factorlist(dependent, explanatory, p = F) %>%
+  summary_factorlist(dependent, explanatory, add_col_totals = TRUE, p = F) %>%
   rename(uv_az = uv, vacc_az = vacc) 
 head(tbl4_az)
 
@@ -143,7 +143,7 @@ write.csv(tbl4_az, paste0("./output/first_dose_", multiplicity_limit, "/final/ma
 # PB
 tbl4_pb <- df_cc_desc %>%
   filter(vacc_type == "PB") %>%
-  summary_factorlist(dependent, explanatory, p = F) %>%
+  summary_factorlist(dependent, explanatory, add_col_totals = TRUE, p = F) %>%
   rename(uv_pb = uv, vacc_pb = vacc)
 head(tbl4_pb)
 
@@ -399,6 +399,8 @@ names(vacc_type_label) <- c("PB", "AZ")
 ### Save dataset
 # Cohort descriptive dataframe required for covariate balance
 z_chrt_desc <- readRDS("./data/z_chrt_desc.rds")
+
+
 
 # Explanatory variables with labels as names
 explanatory <- c("Sex"="Sex", "Age (grouped)" = "age_grp", "Deprivation status" = "simd2020_sc_quintile", 

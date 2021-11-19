@@ -13,8 +13,8 @@ z_event_endpoint <- "death_hosp"
 #z_event_endpoint <- "death_covid"
 
 # This controls the save path
-dose <- 'first_dose'
-#dose <- 'second_dose'
+#dose <- 'first_dose'
+dose <- 'second_dose'
 
 #### 1 - Table of daily follow-up #####
 
