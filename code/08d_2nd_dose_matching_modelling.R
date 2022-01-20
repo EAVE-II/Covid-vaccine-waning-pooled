@@ -529,8 +529,8 @@ dev.off()
 
 # Select vaccine type
 # PB has to be done first!
-z_vacc_type <- "PB"
-#z_vacc_type <- "AZ"
+#z_vacc_type <- "PB"
+z_vacc_type <- "AZ"
 
 # Assign vaccine title
 if(z_vacc_type == "PB"){
