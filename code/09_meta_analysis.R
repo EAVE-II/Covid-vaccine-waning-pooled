@@ -37,6 +37,12 @@ df_dose_2_scot <- read.csv('./data/second_dose_1/meta-analysis/tbl_gam_age_death
 df_dose_1_ni <- read.csv('./data/Dacvap2/section_6_gam_results_for_transfer_to_scotland_TRE_by_age_first_dose.csv') 
 df_dose_2_ni <- read.csv('./data/Dacvap2/section_6_gam_results_for_transfer_to_scotland_TRE_by_age_second_dose.csv')
 
+# Wales results
+df_wales <- read.csv('./data/Wales/d_pdays_hosp_death_vacc_dose_age.csv')
+
+df_dose_1_wales <- df_wales %>% filter(dose_cat =='First') %>% select(-dose_cat)
+df_dose_2_wales <- df_wales %>% filter(dose_cat =='Second') %>% select(-dose_cat)
+
 
 ##### 2 Functions
 
@@ -64,6 +70,21 @@ process_scot <- function(df){
   df <- rename(df, age_group = Subgroup,
                day = z.yr) %>%
         arrange(vacc_type, age_group, day)
+}
+
+# Process Welsh data
+process_wales <- function(df){
+  
+  df <- rename(df, vacc_type = case_vacc_name,
+               age_group = age_cat,
+               day = x_day,
+               n_uv = control_pdays,
+               event_uv = control_event,
+               n_vacc = case_pdays,
+               event_vacc = case_event) %>%
+    mutate(age_group = as.character(age_group)) %>%
+    mutate(age_group = as.factor( ifelse(age_group == ('80-110'), '80+', age_group))) %>%
+    arrange(vacc_type, age_group, day)
 }
 
 #Sum over age groups
@@ -94,6 +115,9 @@ get_min_days <- function(max_days_df_list){
   df
 }
 
+df = df_dose_1_wales
+min_days = min_days_dose_1
+
 # This creates a dataframe that is censored as above by vacc_type and age group
 truncate_days <-function(df, min_days){
   
@@ -121,10 +145,13 @@ df_dose_2_ni = process_ni(df_dose_2_ni)
 df_dose_1_scot = process_scot(df_dose_1_scot)
 df_dose_2_scot = process_scot(df_dose_2_scot)
 
+df_dose_1_wales = process_wales(df_dose_1_wales)
+df_dose_2_wales = process_wales(df_dose_2_wales)
+
 
 # List of dataframes 
-df_list_dose_1 <- list(df_dose_1_ni, df_dose_1_scot)
-df_list_dose_2 <- list(df_dose_2_ni, df_dose_2_scot)
+df_list_dose_1 <- list(df_dose_1_ni, df_dose_1_scot, df_dose_1_wales)
+df_list_dose_2 <- list(df_dose_2_ni, df_dose_2_scot, df_dose_2_wales)
 
 # List of dataframes summed over age groups
 df_list_dose_1_all <- lapply(df_list_dose_1, sum_over_age_groups)
@@ -159,8 +186,8 @@ df_list_dose_2_all <- lapply(df_list_dose_1_all, function(x){ truncate_days(x, m
 df_dose_1 = df_list_dose_1[[1]]
 df_dose_1_all = df_list_dose_1_all[[1]]
 
-df_dose_2 = df_list_dose_2[[2]]
-df_dose_2_all = df_list_dose_2_all[[2]]
+df_dose_2 = df_list_dose_2[[1]]
+df_dose_2_all = df_list_dose_2_all[[1]]
 
 for (i in 2:length(df_list_dose_1)){
   
@@ -227,7 +254,7 @@ plot_gam <- function(df, vacc){
   if(vacc == "PB"){
     z_vacc_title = "BNT162b2"
   } else {
-    vacc = "ChAdOx1"
+    z_vacc_title = "ChAdOx1"
   }
   
   myknots <-  seq(14,70, by =7)
@@ -354,7 +381,7 @@ plot_gam <- function(df, vacc){
 
 save_plots <- function(df, dose){
   
-  for (row in 1:nrow(subsets)){
+  for (row in 1:nrow(min_days_dose_1)){
     
     vaccine = min_days_dose_1$vacc_type[row]
     age = min_days_dose_1$age_group[row]
@@ -390,21 +417,4 @@ ggsave(paste0('./output/gam_dose_2_AZ_all.png'))
 
 plot_gam(df_dose_2_all %>% filter(vacc_type == 'PB'), 'PB')
 ggsave(paste0('./output/gam_dose_2_PB_all.png'))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

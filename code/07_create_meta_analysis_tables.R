@@ -13,15 +13,15 @@ z_event_endpoint <- "death_hosp"
 #z_event_endpoint <- "death_covid"
 
 # This controls the save path
-dose <- 'first_dose' 
-#dose <- 'second_dose'
+#dose <- 'first_dose' 
+dose <- 'second_dose'
 
 #### 1 - Table of daily follow-up #####
 
-z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_hosp),by=1) ))
+z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_event),by=1) ))
 
 ## All vaccines
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr,
+z.agg <- pyears(Surv(time_to_event,event) ~ vacc + z.yr,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 daily_gam_all <- z.agg$data %>%
@@ -37,7 +37,7 @@ head(daily_gam_all)
 
 
 ## Separate vaccines
-z.agg <- pyears(Surv(time_to_hosp,event) ~ vacc + z.yr +vacc_type,
+z.agg <- pyears(Surv(time_to_event,event) ~ vacc + z.yr +vacc_type,
                 data=df_cc_ps_matches , scale=1, data.frame=TRUE)
 
 daily_gam_vacc <- z.agg$data %>%
@@ -72,11 +72,11 @@ df_cc_ps_matches <- df_cc_ps_matches %>%
 GAM_tbl_var <- function(variable){
   
   # Day
-  z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_hosp),by=1) ))
+  z.yr <- tcut(rep(0,nrow(df_cc_ps_matches)), c(-1,seq(0,max(df_cc_ps_matches$time_to_event),by=1) ))
   
   
   # Formula
-  z.fmla <- as.formula(paste("Surv(time_to_hosp,event)",
+  z.fmla <- as.formula(paste("Surv(time_to_event,event)",
                              " ~ vacc + z.yr + vacc_type +",
                              paste(variable, collapse= "+")))
   
