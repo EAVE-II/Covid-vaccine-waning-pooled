@@ -34,11 +34,17 @@ df_dose_2_scot <- read.csv('./data/second_dose_1/meta-analysis/tbl_gam_age_death
 
 
 # Norther Ireland results
-df_dose_1_ni <- read.csv('./data/Dacvap2/section_6_gam_results_for_transfer_to_scotland_TRE_by_age_first_dose.csv') 
-df_dose_2_ni <- read.csv('./data/Dacvap2/section_6_gam_results_for_transfer_to_scotland_TRE_by_age_second_dose.csv')
+df_dose_1_ni <- read.csv('./data/NI/section_6_gam_results_for_transfer_to_scotland_TRE_by_age_first_dose.csv') 
+df_dose_2_ni <- read.csv('./data/NI/section_6_gam_results_for_transfer_to_scotland_TRE_by_age_second_dose.csv')
 
 # Wales results
 df_wales <- read.csv('./data/Wales/d_pdays_hosp_death_vacc_dose_age.csv')
+
+df_dose_1_wales <- df_wales %>% filter(dose_cat =='First') %>% select(-dose_cat)
+df_dose_2_wales <- df_wales %>% filter(dose_cat =='Second') %>% select(-dose_cat)
+
+# England results
+df_england <- read.csv('./data/England/RCGP_output_table.csv')
 
 df_dose_1_wales <- df_wales %>% filter(dose_cat =='First') %>% select(-dose_cat)
 df_dose_2_wales <- df_wales %>% filter(dose_cat =='Second') %>% select(-dose_cat)
@@ -61,7 +67,8 @@ process_ni <- function(df){
                 age_group = as.character(age_group)) %>%
         mutate( age_group = as.factor( str_replace(age_group, '<65', '18-64' ))) %>%
         select(vacc_type, age_group, day, numeric_cols) %>%
-        arrange(vacc_type, age_group, day)
+        arrange(vacc_type, age_group, day) %>%
+        mutate_at(numeric_cols, ~replace(., is.na(.), 0))
 }
 
 # Process Scottish data
@@ -69,7 +76,8 @@ process_scot <- function(df){
   
   df <- rename(df, age_group = Subgroup,
                day = z.yr) %>%
-        arrange(vacc_type, age_group, day)
+        arrange(vacc_type, age_group, day)%>%
+        mutate_at(numeric_cols, ~replace(., is.na(.), 0))
 }
 
 # Process Welsh data
@@ -84,7 +92,8 @@ process_wales <- function(df){
                event_vacc = case_event) %>%
     mutate(age_group = as.character(age_group)) %>%
     mutate(age_group = as.factor( ifelse(age_group == ('80-110'), '80+', age_group))) %>%
-    arrange(vacc_type, age_group, day)
+    arrange(vacc_type, age_group, day)%>%
+    mutate_at(numeric_cols, ~replace(., is.na(.), 0))
 }
 
 #Sum over age groups
@@ -115,8 +124,6 @@ get_min_days <- function(max_days_df_list){
   df
 }
 
-df = df_dose_1_wales
-min_days = min_days_dose_1
 
 # This creates a dataframe that is censored as above by vacc_type and age group
 truncate_days <-function(df, min_days){
@@ -156,7 +163,6 @@ df_list_dose_2 <- list(df_dose_2_ni, df_dose_2_scot, df_dose_2_wales)
 # List of dataframes summed over age groups
 df_list_dose_1_all <- lapply(df_list_dose_1, sum_over_age_groups)
 df_list_dose_2_all <- lapply(df_list_dose_2, sum_over_age_groups)
-
 
 
 # Get lists of minimum days, where we truncate
@@ -396,7 +402,6 @@ save_plots <- function(df, dose){
   }
   
 }
-
 
 
 
