@@ -94,9 +94,9 @@ df_cc_desc <- df_cc_ps_matches %>%
   # Event data for everyone
   left_join(covid_hosp_death %>%
               mutate(hosp_death = if_else(!is.na(NRS.Date.Death) & !is.na(hosp_admission_date), "both", outcome_date)) %>%
-              select(EAVE_LINKNO, hosp_death), 
+              select(EAVE_LINKNO, hosp_death),
             by=c("EAVE_LINKNO" = "EAVE_LINKNO")) %>%
-  # Household information
+  #Household information
   left_join(select(Cohort_Household, EAVE_LINKNO,
                    n_hh_gp, ave_hh_age, care_home_elderly),
             by= c("EAVE_LINKNO"= "EAVE_LINKNO")) %>%
@@ -112,7 +112,6 @@ df_cc_desc <- df_cc_ps_matches %>%
 # Totals
 table(df_cc_desc$Total, df_cc_desc$vacc)
 table(df_cc_desc$Total, df_cc_desc$vacc, df_cc_desc$vacc_type) # By vacc type
-
 
 
 # Explanatory variables
@@ -148,15 +147,15 @@ tbl4_pb <- df_cc_desc %>%
   rename(v1_pb = v1, v2_pb = v2)
 head(tbl4_pb)
 
-write.csv(tbl4_pb, paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/tbl4_pb.csv"))
+write.csv(tbl4_pb, paste0("./data/second_dose_", multiplicity_limit, "/final/matching_summary/tbl4_pb.csv"))
 
 # Bind tables together
 # tbl4 <- bind_cols(tbl4_tot, select(tbl4_az, v1_az, v2_az))
-# tbl4 <- bind_cols(tbl4, select(tbl4_pb, v1_pb, v2_pb))
+tbl4 <- bind_cols(tbl4_az, select(tbl4_pb, v1_pb, v2_pb))
 
-tbl4 <- bind_cols(tbl4_az, select(tbl4_pb, uv_pb, vacc_pb))
+# tbl4 <- bind_cols(tbl4_az, select(tbl4_pb, uv_pb, vacc_pb))
 
-write.csv(tbl4, paste0("./output/second_dose_", multiplicity_limit, "/final/matching_summary/tbl4.csv"))
+write.csv(tbl4, paste0("./data/second_dose_", multiplicity_limit, "/final/matching_summary/tbl4.csv"))
 
 ## Total
 df_cc_desc %>%

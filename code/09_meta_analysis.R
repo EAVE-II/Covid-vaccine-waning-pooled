@@ -44,10 +44,9 @@ df_dose_1_wales <- df_wales %>% filter(dose_cat =='First') %>% select(-dose_cat)
 df_dose_2_wales <- df_wales %>% filter(dose_cat =='Second') %>% select(-dose_cat)
 
 # England results
-df_england <- read.csv('./data/England/RCGP_output_table.csv')
-
-df_dose_1_wales <- df_wales %>% filter(dose_cat =='First') %>% select(-dose_cat)
-df_dose_2_wales <- df_wales %>% filter(dose_cat =='Second') %>% select(-dose_cat)
+df_dose_1_eng <- read.csv('./data/England/daily_gam_output_age_dose1.csv') 
+df_dose_2_eng <- read.csv('./data/England/daily_gam_output_age_dose2.csv')%>%
+  rename(n_uv = n_v1, n_vacc = n_v2, event_uv = event_v1, event_vacc = event_v2)
 
 
 ##### 2 Functions
@@ -95,6 +94,22 @@ process_wales <- function(df){
     arrange(vacc_type, age_group, day)%>%
     mutate_at(numeric_cols, ~replace(., is.na(.), 0))
 }
+
+# Process English data
+process_eng <- function(df){
+  
+  df <- select(df, -X) %>%
+    rename(vacc_type = vacc_type_1,
+           age_group = age_grp2,
+           day = z.yr
+           ) %>%
+    mutate( vacc_type = str_replace(vacc_type, 'AstraZeneca', 'AZ'),
+                            vacc_type = str_replace(vacc_type, 'Pfizer', 'PB'),
+                            age_group = as.character(age_group)) %>%
+    arrange(vacc_type, age_group, day)%>%
+    mutate_at(numeric_cols, ~replace(., is.na(.), 0))
+}
+
 
 #Sum over age groups
 sum_over_age_groups <- function(df){
@@ -155,10 +170,13 @@ df_dose_2_scot = process_scot(df_dose_2_scot)
 df_dose_1_wales = process_wales(df_dose_1_wales)
 df_dose_2_wales = process_wales(df_dose_2_wales)
 
+df_dose_1_eng = process_eng(df_dose_1_eng)
+df_dose_2_eng = process_eng(df_dose_2_eng)
+
 
 # List of dataframes 
-df_list_dose_1 <- list(df_dose_1_ni, df_dose_1_scot, df_dose_1_wales)
-df_list_dose_2 <- list(df_dose_2_ni, df_dose_2_scot, df_dose_2_wales)
+df_list_dose_1 <- list(df_dose_1_ni, df_dose_1_scot, df_dose_1_wales, df_dose_1_eng)
+df_list_dose_2 <- list(df_dose_2_ni, df_dose_2_scot, df_dose_2_wales, df_dose_2_eng)
 
 # List of dataframes summed over age groups
 df_list_dose_1_all <- lapply(df_list_dose_1, sum_over_age_groups)
@@ -181,10 +199,10 @@ min_days_dose_2_all <- lapply(df_list_dose_2_all, function(x) {get_max_days(x, v
 
 # Truncate by days
 df_list_dose_1 <- lapply(df_list_dose_1, function(x){ truncate_days(x, min_days_dose_1)})
-df_list_dose_2 <- lapply(df_list_dose_1, function(x){ truncate_days(x, min_days_dose_2)})
+df_list_dose_2 <- lapply(df_list_dose_2, function(x){ truncate_days(x, min_days_dose_2)})
 
 df_list_dose_1_all <- lapply(df_list_dose_1_all, function(x){ truncate_days(x, min_days_dose_1_all)})
-df_list_dose_2_all <- lapply(df_list_dose_1_all, function(x){ truncate_days(x, min_days_dose_2_all)})
+df_list_dose_2_all <- lapply(df_list_dose_2_all, function(x){ truncate_days(x, min_days_dose_2_all)})
 
 
 
@@ -254,7 +272,7 @@ df_dose_2_all  <- separate_groups(df_dose_2_all)
 # 
 # z_pois <- mutate_at(z_pois,  c('n', 'event', 'pyears'), ~replace(., is.na(.), 0))
 
-plot_gam <- function(df, vacc){
+plot_gam <- function(df, vacc, time_limit){
 
   # Assign vaccine title
   if(vacc == "PB"){
@@ -263,7 +281,7 @@ plot_gam <- function(df, vacc){
     z_vacc_title = "ChAdOx1"
   }
   
-  myknots <-  seq(14,70, by =7)
+  myknots <-  seq(14,time_limit-7, by =7)
   
   z_gam_vacc <- gam(event ~ offset(log(n)) + vacc + s(day, by=vacc, k=length(myknots)), 
                     knots = list(day = myknots), 
@@ -365,14 +383,14 @@ plot_gam <- function(df, vacc){
     geom_hline(yintercept = 1, linetype = 1) +
     #  geom_hline(yintercept = 0.5, linetype = 3) +
     #  annotate("text", x=80, y=0.6, label = "Waning threshold", size=3) +
-    scale_x_continuous(breaks = seq(14,84, by = 7), 
-                       limits = c(0,84))
+    scale_x_continuous(breaks = seq(14,time_limit, by = 7), 
+                       limits = c(0,time_limit+7))
   
   
   ## Weekly RRs from z_rr to overlap ontop of p_c
   z_rr_wkly <- z_rr %>%
     #mutate(rr_upr = ifelse(rr_upr==3, Inf, rr_upr)) %>%
-    filter(day %in% seq(14,84, by = 14)) %>%
+    filter(day %in% seq(14,time_limit, by = 14)) %>%
     mutate(rr_ci = paste0(round(rr,2), " (", round(rr_lwr,2), ", ", round(rr_upr,2), ")")) %>%
     mutate(y=1)
   
@@ -383,7 +401,7 @@ plot_gam <- function(df, vacc){
   p_c
 }
 
-
+time_limit = 98
 
 save_plots <- function(df, dose){
   
@@ -392,10 +410,10 @@ save_plots <- function(df, dose){
     vaccine = min_days_dose_1$vacc_type[row]
     age = min_days_dose_1$age_group[row]
     
-    df <-  filter(df_dose_1, vacc_type == vaccine,
-                  age_group == age)
+    print(vaccine)
+    print(age)
     
-    plot <- plot_gam(df, vaccine)
+    plot <- plot_gam( filter(df, vacc_type == vaccine, age_group == age), vaccine, time_limit)
     
     ggsave(paste0('./output/gam_dose_', dose, '_', vaccine, '_', age, '.png'), plot)
     
@@ -404,22 +422,21 @@ save_plots <- function(df, dose){
 }
 
 
-
 # By age group
 save_plots(df_dose_1, 1)
 save_plots(df_dose_2, 2)
 
 
 # All ages
-plot_gam(df_dose_1_all %>% filter(vacc_type == 'AZ'), 'AZ')
+plot_gam(df_dose_1_all %>% filter(vacc_type == 'AZ'), 'AZ', time_limit)
 ggsave(paste0('./output/gam_dose_1_AZ_all.png'))
 
-plot_gam(df_dose_1_all %>% filter(vacc_type == 'PB'), 'PB')
+plot_gam(df_dose_1_all %>% filter(vacc_type == 'PB'), 'PB', time_limit)
 ggsave(paste0('./output/gam_dose_1_PB_all.png'))
 
-plot_gam(df_dose_2_all %>% filter(vacc_type == 'AZ'),'AZ')
+plot_gam(df_dose_2_all %>% filter(vacc_type == 'AZ'),'AZ', time_limit)
 ggsave(paste0('./output/gam_dose_2_AZ_all.png'))
 
-plot_gam(df_dose_2_all %>% filter(vacc_type == 'PB'), 'PB')
+plot_gam(df_dose_2_all %>% filter(vacc_type == 'PB'), 'PB', time_limit)
 ggsave(paste0('./output/gam_dose_2_PB_all.png'))
 
